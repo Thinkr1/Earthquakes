@@ -6,6 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXCopyFilesBuildPhase section */
+		DB06450B2D1F224F00192787 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		DB8949C82D11FD0A00934C38 /* Earthquakes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Earthquakes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -47,14 +60,26 @@
 		};
 /* End PBXGroup section */
 
+/* Begin PBXHeadersBuildPhase section */
+		DB06450E2D1F22A400192787 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
 /* Begin PBXNativeTarget section */
 		DB8949C72D11FD0A00934C38 /* Earthquakes */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DB8949D72D11FD0C00934C38 /* Build configuration list for PBXNativeTarget "Earthquakes" */;
 			buildPhases = (
+				DB06450E2D1F22A400192787 /* Headers */,
 				DB8949C42D11FD0A00934C38 /* Sources */,
 				DB8949C52D11FD0A00934C38 /* Frameworks */,
 				DB8949C62D11FD0A00934C38 /* Resources */,
+				DB06450B2D1F224F00192787 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -257,7 +282,12 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Earthquakes;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Earthquakes needs your location to show earthquakes near you";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -284,7 +314,12 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Earthquakes;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Earthquakes needs your location to show earthquakes near you";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
