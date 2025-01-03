@@ -10,13 +10,16 @@ import SceneKit
 import CoreLocation
 import WebKit
 
-
 struct Earthquake: Identifiable, Equatable {
     let id: String
     let mag: Double
+    let MMI: Double?
+    let sig: Double?
     let loc: String
+    let place: String
     let lat: Double?
     let lon: Double?
+    let depth: Double
     let url: String
     let time: String
 }
@@ -63,44 +66,45 @@ extension Double {
 //    }
 //}
 
+// MARK: ContentView
+
 struct ContentView: View {
     @State private var settingsPanel: NSPanel? = nil
     @State private var earthquakes: [Earthquake] = []
     @State private var historicEarthquakes: [Earthquake] = [
-        Earthquake(id: "1", mag: 9.5, loc: "Chile, Valdivia", lat: -39.8138, lon: -73.2404, url: "", time: "May 22, 1960"),
-        Earthquake(id: "2", mag: 9.2, loc: "United States, Alaska", lat: 61.3706, lon: -152.4044, url: "", time: "March 27, 1964"),
-        Earthquake(id: "3", mag: 9.0, loc: "USSR, Kamchatka", lat: 53.1018, lon: 158.6431, url: "", time: "November 5, 1952"),
-        Earthquake(id: "4", mag: 8.8, loc: "Ecuador – Colombia", lat: -0.1754, lon: -78.4678, url: "", time: "January 31, 1906"),
-        Earthquake(id: "5", mag: 8.7, loc: "United States, Alaska", lat: 61.3706, lon: -152.4044, url: "", time: "February 4, 1965"),
-        Earthquake(id: "6", mag: 8.7, loc: "India, Assam – China, Tibet", lat: 27.6074, lon: 91.9784, url: "", time: "August 15, 1950"),
-        Earthquake(id: "7", mag: 8.6, loc: "United States, Alaska", lat: 61.3706, lon: -152.4044, url: "", time: "March 9, 1957"),
-        Earthquake(id: "8", mag: 8.6, loc: "United States, Aleutian Island", lat: 52.6644, lon: -175.1164, url: "", time: "April 1, 1946"),
-        Earthquake(id: "9", mag: 8.5, loc: "USSR, Kuril Islands", lat: 44.0214, lon: 153.6819, url: "", time: "October 13, 1963"),
-        Earthquake(id: "10", mag: 8.5, loc: "Indonesia, Banda Sea", lat: -6.7836, lon: 129.8606, url: "", time: "February 1, 1938"),
-        Earthquake(id: "11", mag: 8.5, loc: "Chile, Atacama", lat: -27.0345, lon: -70.4368, url: "", time: "November 10, 1922"),
-        Earthquake(id: "12", mag: 8.5, loc: "Western Samoa", lat: -13.7590, lon: -172.1046, url: "", time: "June 25, 1917"),
-        Earthquake(id: "13", mag: 9.2, loc: "Indonesia, Sumatra, Indian Ocean", lat: 3.3166, lon: 95.8558, url: "", time: "December 26, 2004"),
-        Earthquake(id: "14", mag: 9.0, loc: "Japan, Tōhoku, Pacific Ocean", lat: 38.3228, lon: 142.3734, url: "", time: "March 11, 2011"),
-        Earthquake(id: "15", mag: 8.8, loc: "Chile, Maule", lat: -35.7010, lon: -71.7984, url: "", time: "February 27, 2010"),
-        Earthquake(id: "16", mag: 8.6, loc: "Indonesia, Sumatra", lat: 1.1603, lon: 99.8789, url: "", time: "March 28, 2005"),
-        Earthquake(id: "17", mag: 8.6, loc: "Indonesia, Sumatra", lat: 1.1603, lon: 99.8789, url: "", time: "April 11, 2012"),
-        Earthquake(id: "18", mag: 8.5, loc: "Indonesia, Sumatra", lat: 1.1603, lon: 99.8789, url: "", time: "September 12, 2007")
+        Earthquake(id: "1", mag: 9.5, MMI: 12, sig: nil, loc: "Chile, Valdivia", place: "Chile", lat: -39.8138, lon: -73.2404, depth: 25, url: "", time: "May 22, 1960"),
+        Earthquake(id: "2", mag: 9.2, MMI: 10, sig: nil, loc: "United States, Alaska", place: "Alaska", lat: 61.3706, lon: -152.4044, depth: 25, url: "", time: "March 27, 1964"),
+        Earthquake(id: "3", mag: 9.0, MMI: 11, sig: nil, loc: "USSR, Kamchatka", place: "Kamchatka", lat: 53.1018, lon: 158.6431, depth: 21.6, url: "", time: "November 5, 1952"),
+        Earthquake(id: "4", mag: 8.8, MMI: 9, sig: nil, loc: "Ecuador – Colombia", place: "Ecuador – Colombia", lat: -0.1754, lon: -78.4678, depth: 20, url: "", time: "January 31, 1906"),
+        Earthquake(id: "5", mag: 8.7, MMI: 6, sig: nil, loc: "United States, Alaska", place: "Alaska", lat: 61.3706, lon: -152.4044, depth: 30.3, url: "", time: "February 4, 1965"),
+        Earthquake(id: "6", mag: 8.7, MMI: 11, sig: nil, loc: "India, Assam – China, Tibet", place: "India – China – Tibet", lat: 27.6074, lon: 91.9784, depth: 15, url: "", time: "August 15, 1950"),
+        Earthquake(id: "7", mag: 8.6, MMI: 8, sig: nil, loc: "United States, Alaska", place: "Alaska", lat: 61.3706, lon: -152.4044, depth: 25, url: "", time: "March 9, 1957"),
+        Earthquake(id: "8", mag: 8.6, MMI: 6, sig: nil, loc: "United States, Aleutian Island", place: "Aleutian Island", lat: 52.6644, lon: -175.1164, depth: 15, url: "", time: "April 1, 1946"),
+        Earthquake(id: "9", mag: 8.5, MMI: 9, sig: nil, loc: "USSR, Kuril Islands", place: "USSR", lat: 44.0214, lon: 153.6819, depth: 47, url: "", time: "October 13, 1963"),
+        Earthquake(id: "10", mag: 8.5, MMI: 6, sig: nil, loc: "Indonesia, Banda Sea", place: "Banda Sea", lat: -6.7836, lon: 129.8606, depth: 60, url: "", time: "February 1, 1938"),
+        Earthquake(id: "11", mag: 8.5, MMI: 11, sig: nil, loc: "Chile, Atacama", place: "Chile", lat: -27.0345, lon: -70.4368, depth: 70, url: "", time: "November 10, 1922"),
+        Earthquake(id: "12", mag: 8.5, MMI: nil, sig: nil, loc: "Western Samoa", place: "Western Samoa", lat: -13.7590, lon: -172.1046, depth: 10, url: "", time: "June 25, 1917"),
+        Earthquake(id: "13", mag: 9.2, MMI: 9, sig: nil, loc: "Indonesia, Sumatra, Indian Ocean", place: "Sumatra", lat: 3.3166, lon: 95.8558, depth: 30, url: "", time: "December 26, 2004"),
+        Earthquake(id: "14", mag: 9.0, MMI: 11, sig: nil, loc: "Japan, Tōhoku, Pacific Ocean", place: "Tōhoku", lat: 38.3228, lon: 142.3734, depth: 29, url: "", time: "March 11, 2011"),
+        Earthquake(id: "15", mag: 8.8, MMI: 9, sig: nil, loc: "Chile, Maule", place: "Chile", lat: -35.7010, lon: -71.7984, depth: 35, url: "", time: "February 27, 2010"),
+        Earthquake(id: "16", mag: 8.6, MMI: 8, sig: nil, loc: "Indonesia, Sumatra", place: "Sumatra", lat: 1.1603, lon: 99.8789, depth: 30, url: "", time: "March 28, 2005"),
+        Earthquake(id: "17", mag: 8.6, MMI: 7, sig: nil, loc: "Indonesia, Sumatra", place: "Sumatra", lat: 1.1603, lon: 99.8789, depth: 20, url: "", time: "April 11, 2012"),
+        Earthquake(id: "18", mag: 8.5, MMI: 6, sig: nil, loc: "Indonesia, Sumatra", place: "Sumatra", lat: 1.1603, lon: 99.8789, depth: 34, url: "", time: "September 12, 2007")
     ]
     @State private var HistoricalSelect: Bool = true
-    @State private var PastDaySelect: Bool = true
-//    @State private var MBEVisible: Bool = true
+    @State private var PastSelect: Bool = true
+    @State private var dataRange: Int = 0 // 0: past 24h, 1: past week, 2: past month
     
     var body: some View {
-        
         NavigationSplitView {
-            SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastDaySelect: $PastDaySelect, HistoricalSelect: $HistoricalSelect)
+            SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange)
         } detail: {
-            EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastDaySelect: $PastDaySelect, HistoricalSelect: $HistoricalSelect)
+            EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange)
         }
         .toolbar {
             ToolbarItem(id:"refresh", placement: .automatic) {
                 HStack {
-                    Button(action:  EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastDaySelect: $PastDaySelect, HistoricalSelect: $HistoricalSelect).fetchEarthquakeData) {
+                    Button(action:  EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange).fetchEarthquakeData) {
                         Image(systemName: "arrow.clockwise")
                             .imageScale(.large)
                             .symbolRenderingMode(.monochrome)
@@ -112,7 +116,7 @@ struct ContentView: View {
             }
             ToolbarItem(id:"settings", placement: .automatic) {
                 Button(action: {
-                    let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastDaySelect: $PastDaySelect)
+                    let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastSelect: $PastSelect)
                     settingsPanel?.makeKeyAndOrderFront(nil)
                 }) {
                     Image(systemName: "gear")
@@ -131,7 +135,7 @@ struct ContentView: View {
 //            Text("Earthquakes near you today: \(earthquakesNearLoc)")
 //            Divider()
 //            Button(action: {
-//                let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastDaySelect: $PastDaySelect)
+//                let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastSelect: $PastSelect)
 //                settingsPanel?.makeKeyAndOrderFront(nil)
 //            }) {
 //                Text("Settings")
@@ -144,16 +148,16 @@ struct ContentView: View {
 //        }
     }
     
-    private func createSettingsPanel(HistoricalSelect: Binding<Bool>, PastDaySelect: Binding<Bool>) -> NSPanel? {
+    private func createSettingsPanel(HistoricalSelect: Binding<Bool>, PastSelect: Binding<Bool>) -> NSPanel? {
         if settingsPanel == nil {
-            let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:300,height:450), styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
+            let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:450,height:450), styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
             
             panel.isFloatingPanel = true
             panel.level = .floating
             panel.hidesOnDeactivate = true
             panel.isReleasedWhenClosed = false
             panel.title = "Settings"
-            panel.contentView = NSHostingView(rootView: SettingsView(PastDaySelect: $PastDaySelect, HistoricalSelect: $HistoricalSelect))//, MBEVisible: $MBEVisible))
+            panel.contentView = NSHostingView(rootView: SettingsView(PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange))//, MBEVisible: $MBEVisible))
             
             settingsPanel=panel
             
@@ -168,116 +172,192 @@ struct ContentView: View {
     }
 }
 
+// MARK: SidebarView
+
 struct SidebarView: View {
     @Binding var earthquakes: [Earthquake]
     @Binding var historicEarthquakes: [Earthquake]
-    @Binding var PastDaySelect: Bool
+    @Binding var PastSelect: Bool
     @Binding var HistoricalSelect: Bool
+    @Binding var dataRange: Int
     @State private var selectedEarthquake: Earthquake? = nil
     @State private var showPopover: Bool=false
 
     var body: some View {
         List {
-            if PastDaySelect {
-                Section("Past 24h (\(earthquakes.count))") {
-                    ForEach(earthquakes, id: \.id) { e in
-                        Button(action: {
-                            selectedEarthquake = e
-                            showPopover = true
-                        }){
-                            HStack {
-                                Circle()
-                                    .fill(getColor(for: e.mag))
-                                    .frame(width: 20, height: 20)
-                                VStack(alignment: .leading) {
-                                    Text("\(e.mag, specifier: "%.1f")")
-                                        .font(.subheadline)
-                                        .bold()
-                                        .foregroundStyle(.primary)
-                                    Text(e.loc)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    
-                                }
-                            }
-                        }
-                        .popover(isPresented: Binding(get: {
-                            showPopover && selectedEarthquake == e
-                        }, set: {
-                            if !$0 {showPopover=false}
-                        })) {
-                            if let se = selectedEarthquake {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("ID: ").foregroundStyle(.secondary)+Text(se.id).foregroundStyle(.primary).bold()
-                                        .font(.headline)
-                                        .bold()
-                                        //.padding(.bottom, 5)
-                                    Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
-                                    Text("Location: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
-                                    Text("UTC Time: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
-                                    Link("More info", destination: URL(string: se.url)!)
-                                        .underline()
-                                        .onTapGesture {
-                                            openLink(url: se.url)
-                                        }
-                                }
-                                .padding()
-                                .frame(width: 200)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
+            if PastSelect {
+                pastDaySection()
             }
             if HistoricalSelect {
-                Section("Historic Earthquakes") {
-                    ForEach(historicEarthquakes, id: \.id) { e in
-                        Button(action: {
-                            selectedEarthquake = e
-                            showPopover = true
-                        }){
-                            HStack {
-                                Circle()
-                                    .fill(getColor(for: e.mag))
-                                    .frame(width: 20, height: 20)
-                                VStack(alignment: .leading) {
-                                    Text("\(e.mag, specifier: "%.1f")")
-                                        .font(.subheadline)
-                                        .bold()
-                                        .foregroundStyle(.primary)
-                                    Text(e.loc)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    
-                                }
-                            }
-                        }
-                        .popover(isPresented: Binding(get: {
-                            showPopover && selectedEarthquake == e
-                        }, set: {
-                            if !$0 {showPopover=false}
-                        })) {
-                            if let se = selectedEarthquake {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("Earthquake: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
-                                        .font(.headline)
-                                        .bold()
-                                        //.padding(.bottom, 5)
-                                    Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
-                                    Text("Date: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
-                                }
-                                .padding()
-                                .frame(width: 200)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
+                historicalSection()
             }
             
         }
         .listStyle(SidebarListStyle())
         .navigationTitle("Earthquakes")
+    }
+    
+    @ViewBuilder
+    private func historicalSection() -> some View {
+        Section("Historic Earthquakes") {
+            ForEach(historicEarthquakes, id: \.id) { e in
+                historicalSectionRow(e)
+            }
+        }
+    }
+    
+    private func historicalSectionRow(_ e: Earthquake) -> some View {
+        Button(action: {
+            selectedEarthquake = e
+            showPopover = true
+        }){
+            HStack {
+                Circle()
+                    .fill(getColor(for: e.mag))
+                    .frame(width: 20, height: 20)
+                VStack(alignment: .leading) {
+                    Text("\(e.mag, specifier: "%.1f")")
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundStyle(.primary)
+                    Text(e.loc)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                }
+            }
+        }
+        .popover(isPresented: Binding(get: {
+            showPopover && selectedEarthquake == e
+        }, set: {
+            if !$0 {showPopover=false}
+        })) {
+            if let se = selectedEarthquake {
+                historicalSectionRowPopoverContent(se)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func historicalSectionRowPopoverContent(_ se: Earthquake) -> some View {
+        LazyVStack(alignment: .leading, spacing: 10) {
+            Text("Earthquake: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
+                .font(.headline)
+                .bold()
+                //.padding(.bottom, 5)
+            Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
+            Text("Date: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
+            if se.MMI != nil {
+                LazyHStack {
+                    Text("MMI: ").foregroundColor(.secondary)
+                    Text(getMMIText(for: se.MMI))
+                        .bold()
+                        .padding(2)
+                        .background(getMMIColor(for: se.MMI))
+                        .foregroundColor(getMMITextColor(for: se.MMI))
+                }
+                Divider()
+                Text("The maximum intensity is based on the Modified Mercalli intensity (MMI) scale which measures the effects of an earthquake at a given location.").font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(width: 200)
+    }
+    
+    @ViewBuilder
+    private func pastDaySection() -> some View {
+        Section("Past \(dataRange==0 ? "24h" : dataRange==1 ? "7d" : "Month") (\(earthquakes.count))") {
+            ForEach(earthquakes, id: \.id) { e in
+                pastDaySectionRow(e)
+            }
+        }
+    }
+    
+    private func pastDaySectionRow(_ e: Earthquake) -> some View {
+        Button(action: {
+            selectedEarthquake = e
+            showPopover = true
+        }){
+            HStack {
+                Circle()
+                    .fill(getColor(for: e.mag))
+                    .frame(width: 20, height: 20)
+                    .overlay {
+                        Text("\(e.mag, specifier: "%.1f")")
+                            .font(.system(size: 7.5))
+                            .foregroundStyle(.black)
+                            .fontWeight(.black)
+                    }
+                VStack(alignment: .leading) {
+                    Text(e.place)
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundStyle(.primary)
+//                                    Text("\(e.mag, specifier: "%.1f")")
+//                                        .font(.subheadline)
+//                                        .bold()
+//                                        .foregroundStyle(.primary)
+                    Text(e.loc)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                }
+            }
+        }
+        .popover(isPresented: Binding(get: {
+            showPopover && selectedEarthquake == e
+        }, set: {
+            if !$0 {showPopover=false}
+        })) {
+            if let se = selectedEarthquake {
+                pastDaySectionRowPopoverContent(se)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func pastDaySectionRowPopoverContent(_ se: Earthquake) -> some View {
+        LazyVStack(alignment: .leading, spacing: 10) {
+            Text("ID: ").foregroundStyle(.secondary)+Text(se.id).foregroundStyle(.primary).bold()
+                .font(.headline)
+                .bold()
+            if se.sig != nil {Text("Significance: ").foregroundStyle(.secondary)+Text("\(se.sig ?? 0, specifier: "%.f")/1000").foregroundStyle(.primary).bold()}
+            Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
+            Text("Location: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
+            Text("UTC Time: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
+            Text("Depth: ").foregroundStyle(.secondary)+Text("\(se.depth, specifier: "%.1f") km").foregroundStyle(.primary).bold()
+            if se.MMI != nil {
+                LazyHStack {
+                    Text("Max Intensity: ").foregroundColor(.secondary)
+                    Text(getMMIText(for: se.MMI))
+                        .bold()
+                        .padding(2)
+                        .background(getMMIColor(for: se.MMI))
+                        .foregroundColor(getMMITextColor(for: se.MMI))
+                }
+            }
+            Link("More info (USGS)", destination: URL(string: se.url)!)
+                .underline()
+                .onTapGesture {
+                    openLink(url: se.url)
+                }
+            if se.MMI != nil || se.sig != nil {
+                Divider()
+                DisclosureGroup("Comments") {
+                    if se.MMI != nil && se.sig != nil {
+                        Text("The maximum intensity is based on the Modified Mercalli intensity (MMI) scale which measures the effects of an earthquake at a given location.\n\nThe significance (on a scale of 0 to 1000) is determined on a number of factors, including: magnitude, maximum MMI, felt reports, and estimated impact.").font(.footnote).foregroundStyle(.secondary) // cdi (not mmi) is fetched because it represents the max intensity
+                    }
+                    if se.sig != nil && se.MMI == nil {
+                        Text("The significance (on a scale of 0 to 1000) is determined on a number of factors, including: magnitude, maximum MMI, felt reports, and estimated impact.").font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if se.MMI != nil && se.sig == nil {
+                        Text("The maximum intensity is based on the Modified Mercalli intensity (MMI) scale which measures the effects of an earthquake at a given location.").font(.footnote).foregroundStyle(.secondary) // cdi (not mmi) is fetched because it represents the max intensity
+                    }
+                }
+            }
+        }
+        .padding()
+        .frame(width: 275)
     }
     
     private func openLink(url: String) {
@@ -314,51 +394,161 @@ struct SidebarView: View {
             return Color.white
         }
     }
+    
+    private func getMMIText(for MMI: Double?) -> String {
+        if MMI != nil {
+            switch MMI {
+            case _ where MMI! >= 12:
+                return "XII (Extreme)"
+            case _ where MMI! >= 11:
+                return "XI (Extreme)"
+            case _ where MMI! >= 10:
+                return "X (Extreme)"
+            case _ where MMI! >= 9:
+                return "IX (Violent)"
+            case _ where MMI! >= 8:
+                return "VIII (Severe)"
+            case _ where MMI! >= 7:
+                return "VII (Very Strong)"
+            case _ where MMI! >= 6:
+                return "VI (Strong)"
+            case _ where MMI! >= 5:
+                return "V (Moderate)"
+            case _ where MMI! >= 4:
+                return "IV (Light)"
+            case _ where MMI! >= 3:
+                return "III (Weak)"
+            case _ where MMI! >= 2:
+                return "II (Weak)"
+            case _ where MMI! >= 1:
+                return "I (Not felt)"
+            case _ where MMI! >= 0:
+                return "Not felt"
+            default:
+                return "–"
+            }
+        } else {
+            return "–"
+        }
+    }
+    
+    private func getMMITextColor(for MMI: Double?) -> Color {
+        if MMI != nil {
+            switch MMI {
+            case _ where MMI! >= 9:
+                return Color.white
+            case _ where MMI! < 9:
+                return Color.black
+            default:
+                return Color.clear
+            }
+        } else {
+            return Color.clear
+        }
+    }
+    
+    private func getMMIColor(for MMI: Double?) -> Color {
+        if MMI != nil {
+            switch MMI {
+            case _ where MMI! >= 12:
+                return Color(red: 117 / 255.0, green: 20 / 255.0, blue: 12 / 255.0)
+            case _ where MMI! >= 11:
+                return Color(red: 150 / 255.0, green: 29 / 255.0, blue: 19 / 255.0)
+            case _ where MMI! >= 10:
+                return Color(red: 183 / 255.0, green: 38 / 255.0, blue: 25 / 255.0)
+            case _ where MMI! >= 9:
+                return Color(red: 234 / 255.0, green: 51 / 255.0, blue: 35 / 255.0)
+            case _ where MMI! >= 8:
+                return Color(red: 240 / 255.0, green: 150 / 255.0, blue: 55 / 255.0)
+            case _ where MMI! >= 7:
+                return Color(red: 246 / 255.0, green: 202 / 255.0, blue: 69 / 255.0)
+            case _ where MMI! >= 6:
+                return Color(red: 255 / 255.0, green: 255 / 255.0, blue: 84 / 255.0)
+            case _ where MMI! >= 5:
+                return Color(red: 157 / 255.0, green: 252 / 255.0, blue: 158 / 255.0)
+            case _ where MMI! >= 4:
+                return Color(red: 161 / 255.0, green: 252 / 255.0, blue: 254 / 255.0)
+            case _ where MMI! >= 3:
+                return Color(red: 175 / 255.0, green: 228 / 255.0, blue: 252 / 255.0)
+            case _ where MMI! >= 2:
+                return Color(red: 193 / 255.0, green: 204 / 255.0, blue: 251 / 255.0)
+            case _ where MMI! >= 1:
+                return Color(red: 255 / 255.0, green: 255 / 255.0, blue: 255 / 255.0)
+            case _ where MMI! >= 0:
+                return Color(red: 255 / 255.0, green: 255 / 255.0, blue: 255 / 255.0)
+            default:
+                return Color.clear
+            }
+        } else {
+            return Color.clear
+        }
+    }
 }
+
+// MARK: EarthView
 
 struct EarthView: View {
     @State private var scene = SCNScene()
+//    @State private var selectedEarthquake: Earthquake?
+//    @State private var showPopover: Bool = false
+//    @State private var popoverAnchor: CGPoint = .zero
+    @State private var debounceTimer: Timer?
     @Binding var earthquakes: [Earthquake]
     @Binding var historicEarthquakes: [Earthquake]
-    @Binding var PastDaySelect: Bool
+    @Binding var PastSelect: Bool
     @Binding var HistoricalSelect: Bool
-    private let earthquakeURL = URL(string: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson")!
-    
+    @Binding var dataRange: Int
     
     var body: some View {
-        VStack {
+        ZStack {
             SceneView (
                 scene: scene,
                 options: [.allowsCameraControl, .autoenablesDefaultLighting]
             )
-        }
-        .edgesIgnoringSafeArea(.all)
-        .onAppear {
-            setupScene()
-            fetchEarthquakeData()
-        }
-        .onChange(of: PastDaySelect, initial: true, {
-            scene.rootNode.childNodes.filter {
-                $0.name?.starts(with: "EPD") ?? false
-            }.forEach {
-                $0.removeFromParentNode()
-                print("Removing pin \(String($0.name!))")
+            .edgesIgnoringSafeArea(.all)
+            .onAppear {
+                setupScene()
+                fetchEarthquakeData()
             }
-        })
-        .onChange(of: HistoricalSelect, initial: true, {
-            scene.rootNode.childNodes.filter {
-                $0.name?.starts(with: "EH") ?? false
-            }.forEach {
-                $0.removeFromParentNode()
-                print("Removing pin \(String($0.name!))")
-            }
-        })
-        .onChange(of: PastDaySelect, initial: false, {
-            fetchEarthquakeData()
-        })
-        .onChange(of: HistoricalSelect, initial: false, {
-            fetchEarthquakeData()
-        })
+            .onChange(of: PastSelect, initial: true, {
+                scene.rootNode.childNodes.filter {
+                    $0.name?.starts(with: "EPD") ?? false
+                }.forEach {
+                    $0.removeFromParentNode()
+                }
+            })
+            .onChange(of: HistoricalSelect, initial: true, {
+                scene.rootNode.childNodes.filter {
+                    $0.name?.starts(with: "EH") ?? false
+                }.forEach {
+                    $0.removeFromParentNode()
+                }
+            })
+            .onChange(of: PastSelect, initial: false, {
+                fetchEarthquakeData()
+            })
+            .onChange(of: HistoricalSelect, initial: false, {
+                fetchEarthquakeData()
+            })
+            .onChange(of: dataRange, initial: false, {
+                fetchEarthquakeData()
+            })
+        }
+//        .popover(isPresented: $showPopover, arrowEdge: .top) {
+//            if let e = selectedEarthquake {
+//                VStack {
+//                    Text("ID: ").foregroundStyle(.secondary)+Text(e.id).foregroundStyle(.primary).bold()
+//                        .font(.headline)
+//                        .bold()
+//                    Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(e.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
+//                    Button("Close") {
+//                        showPopover=false
+//                    }
+//                }
+//                .padding()
+//                .frame(width: 275)
+//            }
+//        }
     }
     
     func setupScene() {
@@ -371,22 +561,36 @@ struct EarthView: View {
         cameraNode.camera = SCNCamera()
         cameraNode.position = SCNVector3(x: 0, y: 0, z: 3)
         scene.rootNode.addChildNode(cameraNode)
-        
-//        let lightNode = SCNNode()
-//        lightNode.light = SCNLight()
-//        lightNode.light?.type = .omni
-//        lightNode.position = SCNVector3(x: 0, y: 10, z: 200)
-//        scene.rootNode.addChildNode(lightNode)
-//
-//        let ambientLightNode = SCNNode()
-//        ambientLightNode.light = SCNLight()
-//        ambientLightNode.light?.type = .ambient
-//        ambientLightNode.light?.color = Color.gray
-//        scene.rootNode.addChildNode(ambientLightNode)
     }
     
     func fetchEarthquakeData() {
-        URLSession.shared.dataTask(with: earthquakeURL) { data, _, error in
+        debounceTimer?.invalidate()
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+            self.fetchEarthquakeDataDebounce()
+        }
+    }
+    
+    func fetchEarthquakeDataDebounce() {
+        let urlString: String
+        // Geological data provided by the U.S. Geological Survey (USGS)
+        switch dataRange {
+        case 0:
+            urlString = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+        case 1:
+            urlString = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+        default:
+            urlString = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson"
+        }
+        
+        guard let url = URL(string: urlString) else {return}
+        
+        let config = URLSessionConfiguration.default
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.urlCache = nil
+        
+        let session = URLSession(configuration: config)
+        
+       session.dataTask(with: url) { data, _, error in
             guard let data=data, error==nil else { return }
             print("fetched data")
             do {
@@ -394,7 +598,7 @@ struct EarthView: View {
                     DispatchQueue.main.async {
                         print("updating")
                         self.updateEarquakeList(features)
-                        let select = PastDaySelect && !HistoricalSelect ? 0 : HistoricalSelect && !PastDaySelect ? 1 : 2
+                        let select = PastSelect && !HistoricalSelect ? 0 : HistoricalSelect && !PastSelect ? 1 : 2
                         self.updateEarthquakePins(features, select)
                     }
                 }
@@ -407,20 +611,46 @@ struct EarthView: View {
     func updateEarquakeList(_ features: [[String: Any]]) {
         var nEarthquakes: [Earthquake] = []
         for feature in features {
-            if let properties = feature["properties"] as? [String: Any], let mag=properties["mag"] as? Double, let place=properties["place"] as? String, let url=properties["url"] as? String, let eid=feature["id"] as? String, let time=properties["time"] as? Int64 {
-                nEarthquakes.append(Earthquake(id: eid, mag: mag, loc: place, lat:nil, lon:nil, url: url, time: String(format: "%02d:%02d:%02d", (time/1000/3600)%24, (time/1000/60)%60, (time/1000)%60)))
+            if let properties = feature["properties"] as? [String: Any], let mag=properties["mag"] as? Double, let place=properties["place"] as? String, let url=properties["url"] as? String, let eid=feature["id"] as? String, let time=properties["time"] as? Int64, let geo = feature["geometry"] as? [String: Any], let coords = geo["coordinates"] as? [Double], let sig = properties["sig"] as? Double {
+                
+                let MMI: Double? = {
+                    if let mmi = properties["cdi"] {
+                        return mmi is NSNull ? nil : mmi as? Double
+                    }
+                    return nil
+                }()
+                
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                //formatter.timeZone = TimeZone(abbreviation: "UTC")
+                let formattedTime = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(time / 1000)))
+                
+                let stateRegex = /of (.*)/
+                
+                var state = place.capitalized
+                
+                do {
+                    if let stateMatch = try stateRegex.firstMatch(in: place) {
+                        state = String(String(stateMatch.0).dropFirst(3))
+                    } else {
+                        state = place.capitalized
+                    }
+                } catch {
+                    print("Failed to found state in \(place.capitalized)")
+                }
+                
+                nEarthquakes.append(Earthquake(id: eid, mag: mag, MMI: MMI, sig: sig, loc: place, place: state, lat:coords[1], lon:coords[0], depth: coords[2], url: url, time: formattedTime))
             }
         }
         self.earthquakes = nEarthquakes
         //print(nEarthquakes)
     }
     
-    func updateEarthquakePins(_ features: [[String: Any]], _ select: Int) { // 0: Past day, 1: Historical, 2: both
+    func updateEarthquakePins(_ features: [[String: Any]], _ select: Int) { // 0: Past x, 1: Historical, 2: both
         scene.rootNode.childNodes.filter {
             $0.name?.starts(with: "E") ?? false
         }.forEach {
             $0.removeFromParentNode()
-            //print("Removing pin \(String($0.name!))")
         }
         
         if select==0 || select==2 {
@@ -437,19 +667,13 @@ struct EarthView: View {
                 addEarthquakePin(lat: e.lat!, lon: e.lon!, mag: e.mag, id: e.id, first: "H")
             }
         }
-//        scene.rootNode.childNodes.filter {
-//            $0.name?.starts(with: select==1 ? "EPD" : select==0 ? "EH" : "None") ?? false
-//        }.forEach {
-//            $0.removeFromParentNode()
-//            print("Removing pin \(String($0.name!))")
-//        }
+
     }
     
     func addEarthquakePin(lat:Double, lon:Double, mag:Double, id:String, first:String) {
         let pinNode = createPinNode(color: mag>=7 ? NSColor(red: 117/255.0, green: 20/255.0, blue: 12/255.0, alpha: 1) : mag>=6 ? NSColor(calibratedRed: 249/255.0, green: 127/255.0, blue: 73/255.0, alpha: 1) : mag>=5 ? NSColor(calibratedRed: 255/255.0, green: 255/255.0, blue: 84/255.0, alpha: 1) : mag>=4 ? NSColor(calibratedRed: 191/255.0, green: 253/255.0, blue: 91/255.0, alpha: 1) : mag>=3 ? NSColor(calibratedRed: 175/255.0, green: 249/255.0, blue: 162/255.0, alpha: 1) : mag>=2 ? NSColor(calibratedRed: 188/255.0, green: 236/255.0, blue: 237/255.0, alpha: 1) : NSColor(calibratedRed: 255/255.0, green: 255/255.0, blue: 255/255.0, alpha: 1))
         pinNode.position = convertCoordinatesTo3D(lat: lat, lon: lon)
         pinNode.name = "E\(first)EarthquakePin_\(id)"
-        //print("Adding pin \(String(pinNode.name!))")
         
         scene.rootNode.addChildNode(pinNode)
     }
@@ -494,10 +718,12 @@ struct EarthView: View {
     }
 }
 
+// MARK: SettingsView
+
 struct SettingsView: View {
-    @Binding var PastDaySelect: Bool
+    @Binding var PastSelect: Bool
     @Binding var HistoricalSelect: Bool
-//    @Binding var MBEVisible: Bool
+    @Binding var dataRange: Int
     
     var body: some View {
         VStack {
@@ -508,25 +734,41 @@ struct SettingsView: View {
             HStack {
                 Text("Show: ")
                     .padding()
-                Toggle("Past 24h", isOn: $PastDaySelect)
+                Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $PastSelect)
                     .toggleStyle(.checkbox)
-                    .onChange(of: PastDaySelect) {
-                        if !HistoricalSelect && !PastDaySelect {
-                            PastDaySelect=true
+                    .onChange(of: PastSelect) {
+                        if !HistoricalSelect && !PastSelect {
+                            PastSelect=true
                         }
                     }
                 Toggle("Historical", isOn: $HistoricalSelect)
                     .toggleStyle(.checkbox)
                     .onChange(of: HistoricalSelect) {
-                        if !PastDaySelect && !HistoricalSelect {
+                        if !PastSelect && !HistoricalSelect {
                             HistoricalSelect=true
                         }
                     }
             }.padding()
-//            Toggle("Show Menu Bar Item", isOn: $MBEVisible)
-//                .toggleStyle(.switch)
-//                .padding()
         }
+        Picker("Data range: ", selection: $dataRange) {
+            HStack {
+                Text("Past Day")
+            }.tag(0)
+            HStack {
+                Text("Past Week")
+                Image(systemName: "exclamationmark.triangle")
+            }.tag(1)
+            HStack {
+                Text("Past Month")
+                Image(systemName: "exclamationmark.triangle")
+            }.tag(2)
+        }.padding()
+        HStack {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundColor(.red)
+                .symbolEffect(.wiggle.up.byLayer, options: .repeat(.periodic(delay: 1.0)))
+            Text("Due to its extensive size, data may take more time to load")
+        }.padding()
     }
 }
 
