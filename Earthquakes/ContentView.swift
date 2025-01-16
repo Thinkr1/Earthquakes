@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  Earthquakes
 //
-//  Created by [REDACTED] on 17/12/2024.
+//  Created by Pierre-Louis ML on 17/12/2024.
 //
 
 import SwiftUI
@@ -94,36 +94,42 @@ struct ContentView: View {
     @State private var HistoricalSelect: Bool = true
     @State private var PastSelect: Bool = true
     @State private var dataRange: Int = 0 // 0: past 24h, 1: past week, 2: past month
+    @State private var selectedEarthquakeID: String? = nil
     
     var body: some View {
         NavigationSplitView {
-            SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange)
+            SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
         } detail: {
-            EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange)
+            EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
         }
         .toolbar {
             ToolbarItem(id:"refresh", placement: .automatic) {
                 HStack {
-                    Button(action:  EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange).fetchEarthquakeData) {
+                    Button(action:  EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID).fetchEarthquakeData) {
                         Image(systemName: "arrow.clockwise")
                             .imageScale(.large)
                             .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
+                            .font(.subheadline)
                             .padding()
                     }
                     Spacer()
                 }
             }
             ToolbarItem(id:"settings", placement: .automatic) {
-                Button(action: {
-                    let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastSelect: $PastSelect)
-                    settingsPanel?.makeKeyAndOrderFront(nil)
-                }) {
-                    Image(systemName: "gear")
-                        .imageScale(.large)
-                        .symbolRenderingMode(.monochrome)
-                        .foregroundStyle(.white)
-                        .padding()
+                HStack {
+                    Button(action: {
+                        let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastSelect: $PastSelect)
+                        settingsPanel?.makeKeyAndOrderFront(nil)
+                    }) {
+                        Image(systemName: "gear")
+                            .imageScale(.large)
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(.primary)
+                            .font(.subheadline)
+                            .padding()
+                    }
+                    Spacer()
                 }
             }
         }
@@ -150,7 +156,7 @@ struct ContentView: View {
     
     private func createSettingsPanel(HistoricalSelect: Binding<Bool>, PastSelect: Binding<Bool>) -> NSPanel? {
         if settingsPanel == nil {
-            let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:450,height:450), styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
+            let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:450,height:450), styleMask: [.unifiedTitleAndToolbar, .borderless, .titled, .closable, .hudWindow, .utilityWindow], backing: .buffered, defer: false)
             
             panel.isFloatingPanel = true
             panel.level = .floating
@@ -163,6 +169,8 @@ struct ContentView: View {
             
             panel.makeKeyAndOrderFront(nil)
             panel.center()
+            panel.isOpaque = false
+            
             
             return panel
         } else {
@@ -180,6 +188,7 @@ struct SidebarView: View {
     @Binding var PastSelect: Bool
     @Binding var HistoricalSelect: Bool
     @Binding var dataRange: Int
+    @Binding var selectedEarthquakeID: String?
     @State private var selectedEarthquake: Earthquake? = nil
     @State private var showPopover: Bool=false
 
@@ -195,6 +204,15 @@ struct SidebarView: View {
         }
         .listStyle(SidebarListStyle())
         .navigationTitle("Earthquakes")
+//        .onAppear {
+//            if let id=selectedEarthquakeID {
+//                if let i=earthquakes.firstIndex(where: {$0.id==id}) {
+//                    self.selectedEarthquake = earthquakes[i]
+//                } else if let i=historicEarthquakes.firstIndex(where: {$0.id==id}) {
+//                    self.selectedEarthquake = historicEarthquakes[i]
+//                }
+//            }
+//        }
     }
     
     @ViewBuilder
@@ -338,40 +356,23 @@ struct SidebarView: View {
             }
             Link("More info (USGS)", destination: URL(string: se.url)!)
                 .underline()
-                .onTapGesture {
-                    openLink(url: se.url)
-                }
             if se.MMI != nil || se.sig != nil {
                 Divider()
                 DisclosureGroup("Comments") {
                     if se.MMI != nil && se.sig != nil {
-                        Text("The maximum intensity is based on the Modified Mercalli intensity (MMI) scale which measures the effects of an earthquake at a given location.\n\nThe significance (on a scale of 0 to 1000) is determined on a number of factors, including: magnitude, maximum MMI, felt reports, and estimated impact.").font(.footnote).foregroundStyle(.secondary) // cdi (not mmi) is fetched because it represents the max intensity
+                        Text("The maximum intensity is based on the Modified Mercalli intensity (MMI) scale which measures the effects of an earthquake at a given location.\n\nThe significance (on a scale of 0 to 1000) is determined on a number of factors, including: magnitude, maximum MMI, felt reports, and estimated impact.").font(.footnote).foregroundStyle(.secondary) // cdi (not mmi) is fetched because it represents the MAX intensity
                     }
                     if se.sig != nil && se.MMI == nil {
                         Text("The significance (on a scale of 0 to 1000) is determined on a number of factors, including: magnitude, maximum MMI, felt reports, and estimated impact.").font(.footnote).foregroundStyle(.secondary)
                     }
                     if se.MMI != nil && se.sig == nil {
-                        Text("The maximum intensity is based on the Modified Mercalli intensity (MMI) scale which measures the effects of an earthquake at a given location.").font(.footnote).foregroundStyle(.secondary) // cdi (not mmi) is fetched because it represents the max intensity
+                        Text("The maximum intensity is based on the Modified Mercalli intensity (MMI) scale which measures the effects of an earthquake at a given location.").font(.footnote).foregroundStyle(.secondary) // cdi (not mmi) is fetched because it represents the MAX intensity
                     }
                 }
             }
         }
         .padding()
         .frame(width: 275)
-    }
-    
-    private func openLink(url: String) {
-        guard let url = URL(string: url) else {return}
-        
-        let config = """
-        tell application "Safari"
-            make new document with properties {URL:"\(url.absoluteString)"}
-            activate
-        end tell
-        """
-        
-        let aS = NSAppleScript(source: config)
-        aS?.executeAndReturnError(nil)
     }
     
     private func getColor(for mag: Double) -> Color {
@@ -498,6 +499,7 @@ struct EarthView: View {
     @Binding var PastSelect: Bool
     @Binding var HistoricalSelect: Bool
     @Binding var dataRange: Int
+    @Binding var selectedEarthquakeID: String?
     
     var body: some View {
         ZStack {
@@ -533,6 +535,13 @@ struct EarthView: View {
             .onChange(of: dataRange, initial: false, {
                 fetchEarthquakeData()
             })
+//            .tapGesture { event in
+//                let loc = event.loc(in: scene)
+//                let hitTestResults = scene.hitTest(loc, options: nil)
+//                if let node = hitTestResults.first?.node {
+//                    selectedEarthquakeID = node.name?.split(separator: "_")[1]
+//                }
+//            }
         }
 //        .popover(isPresented: $showPopover, arrowEdge: .top) {
 //            if let e = selectedEarthquake {
@@ -560,6 +569,8 @@ struct EarthView: View {
         let cameraNode = SCNNode()
         cameraNode.camera = SCNCamera()
         cameraNode.position = SCNVector3(x: 0, y: 0, z: 3)
+        cameraNode.camera?.usesOrthographicProjection = true
+        cameraNode.camera?.orthographicScale = 1.5
         scene.rootNode.addChildNode(cameraNode)
     }
     
@@ -674,6 +685,9 @@ struct EarthView: View {
         let pinNode = createPinNode(color: mag>=7 ? NSColor(red: 117/255.0, green: 20/255.0, blue: 12/255.0, alpha: 1) : mag>=6 ? NSColor(calibratedRed: 249/255.0, green: 127/255.0, blue: 73/255.0, alpha: 1) : mag>=5 ? NSColor(calibratedRed: 255/255.0, green: 255/255.0, blue: 84/255.0, alpha: 1) : mag>=4 ? NSColor(calibratedRed: 191/255.0, green: 253/255.0, blue: 91/255.0, alpha: 1) : mag>=3 ? NSColor(calibratedRed: 175/255.0, green: 249/255.0, blue: 162/255.0, alpha: 1) : mag>=2 ? NSColor(calibratedRed: 188/255.0, green: 236/255.0, blue: 237/255.0, alpha: 1) : NSColor(calibratedRed: 255/255.0, green: 255/255.0, blue: 255/255.0, alpha: 1))
         pinNode.position = convertCoordinatesTo3D(lat: lat, lon: lon)
         pinNode.name = "E\(first)EarthquakePin_\(id)"
+//        pinNode.selectHandler = {
+//            self.selectedEarthquakeID = id
+//        }
         
         scene.rootNode.addChildNode(pinNode)
     }
@@ -727,10 +741,10 @@ struct SettingsView: View {
     
     var body: some View {
         VStack {
-            Text("Settings")
-                .font(.headline)
-                .bold()
-                .padding(.top, 10)
+//            Text("Settings")
+//                .font(.headline)
+//                .bold()
+//                .padding(.top, 10)
             HStack {
                 Text("Show: ")
                     .padding()

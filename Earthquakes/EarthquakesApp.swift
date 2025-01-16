@@ -12,6 +12,6 @@ struct EarthquakesApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-        }
+        }.windowStyle(HiddenTitleBarWindowStyle())
     }
 }
