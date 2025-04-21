@@ -259,12 +259,21 @@ struct SidebarView: View {
     
     private func historicalSectionRowPopoverContent(_ se: Earthquake) -> some View {
         LazyVStack(alignment: .leading, spacing: 10) {
-            Text("Earthquake: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
-                .font(.headline)
-                .bold()
+            if #available(macOS 14.0, *) {
+                Text("Earthquake: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
+                    .font(.headline)
+                    .bold()
                 //.padding(.bottom, 5)
-            Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
-            Text("Date: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
+                Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
+                Text("Date: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
+            } else {
+                Text("Earthquake: ").foregroundColor(.secondary)+Text(se.loc).foregroundColor(.primary).bold()
+                    .font(.headline)
+                    .bold()
+                //.padding(.bottom, 5)
+                Text("Magnitude: ").foregroundColor(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundColor(.primary).bold()
+                Text("Date: ").foregroundColor(.secondary)+Text(se.time).foregroundColor(.primary).bold()
+            }
             if se.MMI != nil {
                 LazyHStack {
                     Text("MMI: ").foregroundColor(.secondary)
@@ -336,14 +345,27 @@ struct SidebarView: View {
     
     private func pastDaySectionRowPopoverContent(_ se: Earthquake) -> some View {
         LazyVStack(alignment: .leading, spacing: 10) {
-            Text("ID: ").foregroundStyle(.secondary)+Text(se.id).foregroundStyle(.primary).bold()
-                .font(.headline)
-                .bold()
-            if se.sig != nil {Text("Significance: ").foregroundStyle(.secondary)+Text("\(se.sig ?? 0, specifier: "%.f")/1000").foregroundStyle(.primary).bold()}
-            Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
-            Text("Location: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
-            Text("UTC Time: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
-            Text("Depth: ").foregroundStyle(.secondary)+Text("\(se.depth, specifier: "%.1f") km").foregroundStyle(.primary).bold()
+            if #available(macOS 14.0, *) {
+                Text("ID: ").foregroundStyle(.secondary)+Text(se.id).foregroundStyle(.primary).bold()
+                    .font(.headline)
+                    .bold()
+            
+                if se.sig != nil {Text("Significance: ").foregroundStyle(.secondary)+Text("\(se.sig ?? 0, specifier: "%.f")/1000").foregroundStyle(.primary).bold()}
+                Text("Magnitude: ").foregroundStyle(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundStyle(.primary).bold()
+                Text("Location: ").foregroundStyle(.secondary)+Text(se.loc).foregroundStyle(.primary).bold()
+                Text("UTC Time: ").foregroundStyle(.secondary)+Text(se.time).foregroundStyle(.primary).bold()
+                Text("Depth: ").foregroundStyle(.secondary)+Text("\(se.depth, specifier: "%.1f") km").foregroundStyle(.primary).bold()
+            } else {
+                Text("ID: ").foregroundColor(.secondary)+Text(se.id).foregroundColor(.primary).bold()
+                    .font(.headline)
+                    .bold()
+            
+                if se.sig != nil {Text("Significance: ").foregroundColor(.secondary)+Text("\(se.sig ?? 0, specifier: "%.f")/1000").foregroundColor(.primary).bold()}
+                Text("Magnitude: ").foregroundColor(.secondary)+Text("\(se.mag, specifier: "%.1f")").foregroundColor(.primary).bold()
+                Text("Location: ").foregroundColor(.secondary)+Text(se.loc).foregroundColor(.primary).bold()
+                Text("UTC Time: ").foregroundColor(.secondary)+Text(se.time).foregroundColor(.primary).bold()
+                Text("Depth: ").foregroundColor(.secondary)+Text("\(se.depth, specifier: "%.1f") km").foregroundColor(.primary).bold()
+            }
             if se.MMI != nil {
                 LazyHStack {
                     Text("Max Intensity: ").foregroundColor(.secondary)
@@ -503,38 +525,73 @@ struct EarthView: View {
     
     var body: some View {
         ZStack {
-            SceneView (
-                scene: scene,
-                options: [.allowsCameraControl, .autoenablesDefaultLighting]
-            )
-            .edgesIgnoringSafeArea(.all)
-            .onAppear {
-                setupScene()
-                fetchEarthquakeData()
+            if #available(macOS 14.0, *) {
+                SceneView (
+                    scene: scene,
+                    options: [.allowsCameraControl, .autoenablesDefaultLighting]
+                )
+                .edgesIgnoringSafeArea(.all)
+                .onAppear {
+                    setupScene()
+                    fetchEarthquakeData()
+                }
+                .onChange(of: PastSelect, initial: true, {
+                    scene.rootNode.childNodes.filter {
+                        $0.name?.starts(with: "EPD") ?? false
+                    }.forEach {
+                        $0.removeFromParentNode()
+                    }
+                })
+                .onChange(of: HistoricalSelect, initial: true, {
+                    scene.rootNode.childNodes.filter {
+                        $0.name?.starts(with: "EH") ?? false
+                    }.forEach {
+                        $0.removeFromParentNode()
+                    }
+                })
+                .onChange(of: PastSelect, initial: false, {
+                    fetchEarthquakeData()
+                })
+                .onChange(of: HistoricalSelect, initial: false, {
+                    fetchEarthquakeData()
+                })
+                .onChange(of: dataRange, initial: false, {
+                    fetchEarthquakeData()
+                })
+            } else {
+                SceneView (
+                    scene: scene,
+                    options: [.allowsCameraControl, .autoenablesDefaultLighting]
+                )
+                .edgesIgnoringSafeArea(.all)
+                .onAppear {
+                    setupScene()
+                    fetchEarthquakeData()
+                }
+                .onChange(of: PastSelect) { _ in
+                    scene.rootNode.childNodes.filter {
+                        $0.name?.starts(with: "EPD") ?? false
+                    }.forEach {
+                        $0.removeFromParentNode()
+                    }
+                }
+                .onChange(of: HistoricalSelect) { _ in
+                    scene.rootNode.childNodes.filter {
+                        $0.name?.starts(with: "EH") ?? false
+                    }.forEach {
+                        $0.removeFromParentNode()
+                    }
+                }
+                .onChange(of: PastSelect) { _ in
+                    fetchEarthquakeData()
+                }
+                .onChange(of: HistoricalSelect) { _ in
+                    fetchEarthquakeData()
+                }
+                .onChange(of: dataRange) { _ in
+                    fetchEarthquakeData()
+                }
             }
-            .onChange(of: PastSelect, initial: true, {
-                scene.rootNode.childNodes.filter {
-                    $0.name?.starts(with: "EPD") ?? false
-                }.forEach {
-                    $0.removeFromParentNode()
-                }
-            })
-            .onChange(of: HistoricalSelect, initial: true, {
-                scene.rootNode.childNodes.filter {
-                    $0.name?.starts(with: "EH") ?? false
-                }.forEach {
-                    $0.removeFromParentNode()
-                }
-            })
-            .onChange(of: PastSelect, initial: false, {
-                fetchEarthquakeData()
-            })
-            .onChange(of: HistoricalSelect, initial: false, {
-                fetchEarthquakeData()
-            })
-            .onChange(of: dataRange, initial: false, {
-                fetchEarthquakeData()
-            })
 //            .tapGesture { event in
 //                let loc = event.loc(in: scene)
 //                let hitTestResults = scene.hitTest(loc, options: nil)
@@ -748,20 +805,37 @@ struct SettingsView: View {
             HStack {
                 Text("Show: ")
                     .padding()
-                Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $PastSelect)
-                    .toggleStyle(.checkbox)
-                    .onChange(of: PastSelect) {
-                        if !HistoricalSelect && !PastSelect {
-                            PastSelect=true
+                if #available(macOS 14.0, *) {
+                    Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $PastSelect)
+                        .toggleStyle(.checkbox)
+                        .onChange(of: PastSelect, initial: false) {
+                            if !HistoricalSelect && !PastSelect {
+                                PastSelect=true
+                            }
                         }
-                    }
-                Toggle("Historical", isOn: $HistoricalSelect)
-                    .toggleStyle(.checkbox)
-                    .onChange(of: HistoricalSelect) {
-                        if !PastSelect && !HistoricalSelect {
-                            HistoricalSelect=true
+                    Toggle("Historical", isOn: $HistoricalSelect)
+                        .toggleStyle(.checkbox)
+                        .onChange(of: HistoricalSelect, initial: false) {
+                            if !PastSelect && !HistoricalSelect {
+                                HistoricalSelect=true
+                            }
                         }
-                    }
+                } else {
+                    Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $PastSelect)
+                        .toggleStyle(.checkbox)
+                        .onChange(of: PastSelect) { _ in
+                            if !HistoricalSelect && !PastSelect {
+                                PastSelect=true
+                            }
+                        }
+                    Toggle("Historical", isOn: $HistoricalSelect)
+                        .toggleStyle(.checkbox)
+                        .onChange(of: HistoricalSelect) { _ in
+                            if !PastSelect && !HistoricalSelect {
+                                HistoricalSelect=true
+                            }
+                        }
+                }
             }.padding()
         }
         Picker("Data range: ", selection: $dataRange) {
@@ -778,9 +852,14 @@ struct SettingsView: View {
             }.tag(2)
         }.padding()
         HStack {
-            Image(systemName: "exclamationmark.triangle")
-                .foregroundColor(.red)
-                .symbolEffect(.wiggle.up.byLayer, options: .repeat(.periodic(delay: 1.0)))
+            if #available(macOS 15.0, *) {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundColor(.red)
+                    .symbolEffect(.wiggle.up.byLayer, options: .repeat(.periodic(delay: 1.0)))
+            } else {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundColor(.red)
+            }
             Text("Due to its extensive size, data may take more time to load")
         }.padding()
     }
