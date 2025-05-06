@@ -1,3 +1,12 @@
+<p align="center">
+  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/Thinkr1/Earthquakes">
+  <img alt="GitHub commits since latest release" src="https://img.shields.io/github/commits-since/Thinkr1/Earthquakes/latest">
+  <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/Thinkr1/Earthquakes">
+  <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/Thinkr1/Earthquakes/total">
+  <img alt="GitHub License" src="https://img.shields.io/github/license/Thinkr1/Earthquakes">
+  <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/Thinkr1/Earthquakes">
+</p>
+
 ## Earthquakes
 
 An app to visualise on a 3D Earth model (texture from NASA Visible Earth catalog) all earthquakes detected by the U.S. Geological Survey (USGS) (https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson) in the past 24h, week, or month, along with historical ones (magnitude superior or equal to 8.5 since 1900).
