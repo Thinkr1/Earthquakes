@@ -9,6 +9,7 @@ import SwiftUI
 import SceneKit
 import CoreLocation
 import WebKit
+import AppKit
 
 struct Earthquake: Identifiable, Equatable {
     let id: String
@@ -66,8 +67,6 @@ extension Double {
 //    }
 //}
 
-// MARK: ContentView
-
 struct ContentView: View {
     @State private var settingsPanel: NSPanel? = nil
     @State private var earthquakes: [Earthquake] = []
@@ -97,10 +96,17 @@ struct ContentView: View {
     @State private var selectedEarthquakeID: String? = nil
     
     var body: some View {
-        NavigationSplitView {
-            SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
-        } detail: {
-            EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
+        ZStack {
+            NavigationSplitView {
+                SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
+            } detail: {
+                EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
+            }
+//            if #available(macOS 26.0, *) {
+//                Color.clear
+//                    .glassEffect(.regular)
+//                    .ignoresSafeArea()
+//            }
         }
         .toolbar {
             ToolbarItem(id:"refresh", placement: .automatic) {
@@ -133,6 +139,17 @@ struct ContentView: View {
                 }
             }
         }
+        .toolbarRole(.automatic)
+        .toolbarTitleDisplayMode(.inline)
+        .background(
+            Group {
+                if #available(macOS 26.0, *) {
+                    Color.clear.glassEffect(.regular)
+                } else {
+                    Color.clear
+                }
+            }
+        )
         
         
 //        MenuBarExtra("Earthquakes", isInserted: $MBEVisible) {
@@ -165,11 +182,13 @@ struct ContentView: View {
             panel.title = "Settings"
             panel.contentView = NSHostingView(rootView: SettingsView(PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange))//, MBEVisible: $MBEVisible))
             
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            
             settingsPanel=panel
             
             panel.makeKeyAndOrderFront(nil)
             panel.center()
-            panel.isOpaque = false
             
             
             return panel
@@ -179,8 +198,6 @@ struct ContentView: View {
         }
     }
 }
-
-// MARK: SidebarView
 
 struct SidebarView: View {
     @Binding var earthquakes: [Earthquake]
@@ -203,6 +220,7 @@ struct SidebarView: View {
             
         }
         .listStyle(SidebarListStyle())
+        .background(Color.clear.background(.thinMaterial))
         .navigationTitle("Earthquakes")
 //        .onAppear {
 //            if let id=selectedEarthquakeID {
@@ -288,6 +306,7 @@ struct SidebarView: View {
             }
         }
         .padding()
+        .background(Color.clear.background(.thickMaterial))
         .frame(width: 200)
     }
     
@@ -394,6 +413,7 @@ struct SidebarView: View {
             }
         }
         .padding()
+        .background(Color.clear.background(.thickMaterial))
         .frame(width: 275)
     }
     
@@ -508,8 +528,6 @@ struct SidebarView: View {
     }
 }
 
-// MARK: EarthView
-
 struct EarthView: View {
     @State private var scene = SCNScene()
 //    @State private var selectedEarthquake: Earthquake?
@@ -526,11 +544,13 @@ struct EarthView: View {
     var body: some View {
         ZStack {
             if #available(macOS 14.0, *) {
-                SceneView (
-                    scene: scene,
-                    options: [.allowsCameraControl, .autoenablesDefaultLighting]
-                )
-                .edgesIgnoringSafeArea(.all)
+                ZStack {
+                    SceneView(
+                        scene: scene,
+                        options: [.allowsCameraControl, .autoenablesDefaultLighting]
+                    )
+                    .edgesIgnoringSafeArea(.all)
+                }
                 .onAppear {
                     setupScene()
                     fetchEarthquakeData()
@@ -559,11 +579,13 @@ struct EarthView: View {
                     fetchEarthquakeData()
                 })
             } else {
-                SceneView (
-                    scene: scene,
-                    options: [.allowsCameraControl, .autoenablesDefaultLighting]
-                )
-                .edgesIgnoringSafeArea(.all)
+                ZStack {
+                    SceneView(
+                        scene: scene,
+                        options: [.allowsCameraControl, .autoenablesDefaultLighting]
+                    )
+                    .edgesIgnoringSafeArea(.all)
+                }
                 .onAppear {
                     setupScene()
                     fetchEarthquakeData()
@@ -625,9 +647,9 @@ struct EarthView: View {
         
         let cameraNode = SCNNode()
         cameraNode.camera = SCNCamera()
+        cameraNode.camera?.usesOrthographicProjection = false
+        cameraNode.camera?.fieldOfView = 65
         cameraNode.position = SCNVector3(x: 0, y: 0, z: 3)
-        cameraNode.camera?.usesOrthographicProjection = true
-        cameraNode.camera?.orthographicScale = 1.5
         scene.rootNode.addChildNode(cameraNode)
     }
     
@@ -777,6 +799,10 @@ struct EarthView: View {
         let material = SCNMaterial()
         material.diffuse.contents = "world.topo.bathy" // Source: NASA
         material.diffuse.wrapT = .repeat
+        // Mildly sharpen texture rendering without pixelation
+        material.diffuse.minificationFilter = .linear
+        material.diffuse.magnificationFilter = .linear
+        material.diffuse.mipFilter = .linear
         material.specular.contents = Color.gray
         sphere.materials = [material]
         
@@ -788,8 +814,6 @@ struct EarthView: View {
         return earthNode
     }
 }
-
-// MARK: SettingsView
 
 struct SettingsView: View {
     @Binding var PastSelect: Bool
@@ -838,6 +862,9 @@ struct SettingsView: View {
                 }
             }.padding()
         }
+        .padding(.top)
+//        .background(Color.clear.background(.regularMaterial))
+//        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         Picker("Data range: ", selection: $dataRange) {
             HStack {
                 Text("Past Day")
@@ -850,7 +877,7 @@ struct SettingsView: View {
                 Text("Past Month")
                 Image(systemName: "exclamationmark.triangle")
             }.tag(2)
-        }.padding()
+        }.padding(.bottom)
         HStack {
             if #available(macOS 15.0, *) {
                 Image(systemName: "exclamationmark.triangle")
@@ -867,4 +894,6 @@ struct SettingsView: View {
 
 #Preview {
     ContentView()
+        .background(Color.black.background(.ultraThinMaterial))
 }
+
