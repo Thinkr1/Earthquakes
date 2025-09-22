@@ -31,9 +31,17 @@ extension Double {
     }
 }
 
+extension Array {
+    func chunked(_ size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0+size, count)])
+        }
+    }
+}
+
 //class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 //    private let manager = CLLocationManager()
-//    
+//
 //    @Published var loc: CLLocationCoordinate2D?
 //
 //    @Published var authorizationStatus: CLAuthorizationStatus?
@@ -43,31 +51,32 @@ extension Double {
 //        manager.delegate = self
 //        manager.desiredAccuracy = kCLLocationAccuracyBest
 //    }
-//    
+//
 //    func requestLocation() {
 //        manager.requestWhenInUseAuthorization()
 //        if CLLocationManager.locationServicesEnabled() {
 //            manager.startUpdatingLocation()
 //        }
 //    }
-//    
+//
 //    func locationManager(_ manager: CLLocationManager, didUpdateLocations locs: [CLLocation]) {
 //        guard let loct = locs.first else { return }
 //        self.loc = loct.coordinate
 //        manager.stopUpdatingLocation()
 //    }
-//    
+//
 //    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
 //        self.authorizationStatus = status
 //        manager.startUpdatingLocation()
 //    }
-//    
+//
 //    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
 //        print("Failed to find user's location: \(error.localizedDescription)")
 //    }
 //}
 
 struct ContentView: View {
+    @Namespace private var namespace
     @State private var settingsPanel: NSPanel? = nil
     @State private var earthquakes: [Earthquake] = []
     @State private var historicEarthquakes: [Earthquake] = [
@@ -90,88 +99,191 @@ struct ContentView: View {
         Earthquake(id: "17", mag: 8.6, MMI: 7, sig: nil, loc: "Indonesia, Sumatra", place: "Sumatra", lat: 1.1603, lon: 99.8789, depth: 20, url: "", time: "April 11, 2012"),
         Earthquake(id: "18", mag: 8.5, MMI: 6, sig: nil, loc: "Indonesia, Sumatra", place: "Sumatra", lat: 1.1603, lon: 99.8789, depth: 34, url: "", time: "September 12, 2007")
     ]
-    @State private var HistoricalSelect: Bool = true
-    @State private var PastSelect: Bool = true
+    @State private var historicalSelect: Bool = true
+    @State private var pastSelect: Bool = true
     @State private var dataRange: Int = 0 // 0: past 24h, 1: past week, 2: past month
     @State private var selectedEarthquakeID: String? = nil
-    
+    @State private var isLoading: Bool = false
+    @State private var showLargeDataWarning: Bool = false
+
     var body: some View {
         ZStack {
             NavigationSplitView {
-                SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
+                SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
             } detail: {
-                EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
-            }
-//            if #available(macOS 26.0, *) {
-//                Color.clear
-//                    .glassEffect(.regular)
-//                    .ignoresSafeArea()
-//            }
-        }
-        .toolbar {
-            ToolbarItem(id:"refresh", placement: .automatic) {
-                HStack {
-                    Button(action:  EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID).fetchEarthquakeData) {
-                        Image(systemName: "arrow.clockwise")
-                            .imageScale(.large)
-                            .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(.primary)
-                            .font(.subheadline)
-                            .padding()
-                    }
-                    Spacer()
+                ZStack {
+                    EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID, isLoading: $isLoading)
                 }
             }
-            ToolbarItem(id:"settings", placement: .automatic) {
-                HStack {
-                    Button(action: {
-                        let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastSelect: $PastSelect)
-                        settingsPanel?.makeKeyAndOrderFront(nil)
-                    }) {
-                        Image(systemName: "gear")
-                            .imageScale(.large)
-                            .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(.primary)
-                            .font(.subheadline)
-                            .padding()
-                    }
-                    Spacer()
-                }
-            }
-        }
-        .toolbarRole(.automatic)
-        .toolbarTitleDisplayMode(.inline)
-        .background(
-            Group {
+            .toolbar {
                 if #available(macOS 26.0, *) {
-                    Color.clear.glassEffect(.regular)
+                    GlassEffectContainer(spacing: 20) {
+                        HStack(spacing: 20) {
+                            HStack {
+                                Button {
+                                    withAnimation {
+                                        isLoading = true
+                                    }
+                                    EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID, isLoading: $isLoading).fetchEarthquakeData()
+                                    withAnimation {
+                                        isLoading = false
+                                    }
+                                } label: {
+                                    Image(systemName: "arrow.clockwise")
+                                        .imageScale(.large)
+                                        .symbolRenderingMode(.monochrome)
+                                        .foregroundStyle(.primary)
+                                        .font(.subheadline)
+                                        .padding()
+                                }
+                                Button(action: {
+                                    let settingsPanel = createSettingsPanel(historicalSelect: $historicalSelect, pastSelect: $pastSelect)
+                                    settingsPanel?.makeKeyAndOrderFront(nil)
+                                }) {
+                                    Image(systemName: "gear")
+                                        .imageScale(.large)
+                                        .symbolRenderingMode(.monochrome)
+                                        .foregroundStyle(.primary)
+                                        .font(.subheadline)
+                                        .padding()
+                                }
+                            }
+                            .glassEffect()
+                            .glassEffectID("permanent", in: namespace)
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .scaleEffect(0.6)
+                                    .frame(width: 28, height: 28)
+                                    .padding(.trailing, 6)
+    //                                .glassEffect()
+                                    .glassEffectID("loading", in: namespace)
+                            }
+                        }
+                    }
                 } else {
-                    Color.clear
+                    HStack(spacing: 20) {
+                        HStack {
+                            Button {
+                                withAnimation {
+                                    isLoading = true
+                                }
+                                EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID, isLoading: $isLoading).fetchEarthquakeData()
+                                withAnimation {
+                                    isLoading = false
+                                }
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                                    .imageScale(.large)
+                                    .symbolRenderingMode(.monochrome)
+                                    .foregroundStyle(.primary)
+                                    .font(.subheadline)
+                                    .padding()
+                            }
+                            Button(action: {
+                                let settingsPanel = createSettingsPanel(historicalSelect: $historicalSelect, pastSelect: $pastSelect)
+                                settingsPanel?.makeKeyAndOrderFront(nil)
+                            }) {
+                                Image(systemName: "gear")
+                                    .imageScale(.large)
+                                    .symbolRenderingMode(.monochrome)
+                                    .foregroundStyle(.primary)
+                                    .font(.subheadline)
+                                    .padding()
+                            }
+                        }
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .scaleEffect(0.8)
+                                .frame(width: 28, height: 28)
+                        }
+                    }
                 }
             }
-        )
-        
-        
-//        MenuBarExtra("Earthquakes", isInserted: $MBEVisible) {
-//            Text("Earthquakes today: \(earthquakes.count)")
-//                .padding()
-//            Text("Earthquakes near you today: \(earthquakesNearLoc)")
-//            Divider()
-//            Button(action: {
-//                let settingsPanel = createSettingsPanel(HistoricalSelect: $HistoricalSelect, PastSelect: $PastSelect)
-//                settingsPanel?.makeKeyAndOrderFront(nil)
-//            }) {
-//                Text("Settings")
-//            }
-//            Button(action: {
-//                NSApplication.shared.terminate(nil)
-//            }) {
-//                Text("Quit")
-//            }
-//        }
+            .onChange(of: dataRange, initial: true) {
+                if dataRange >= 1 {
+                    withAnimation(.easeInOut) { showLargeDataWarning = true }
+                } else {
+                    withAnimation(.easeInOut) { showLargeDataWarning = false }
+                }
+            }
+            .onAppear {
+                if dataRange >= 1 {
+                    showLargeDataWarning = true
+                }
+            }
+            
+            if showLargeDataWarning {
+                VStack {
+                    Spacer()
+                    if #available(macOS 26.0, *) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.yellow)
+                            Text("Selected dataset is large. Loading delays are to be expected.")
+                                .font(.callout)
+                            Spacer(minLength: 8)
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.35)) {
+                                    showLargeDataWarning = false
+                                }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .glassEffect(.regular)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(maxWidth: 500)
+                        .padding(.bottom, 20)
+                    } else {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.yellow)
+                            Text("Selected dataset is large. Loading delays are to be expected.")
+                                .font(.callout)
+                            Spacer(minLength: 8)
+                            if #available(macOS 26.0, *) {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.35)) {
+                                        showLargeDataWarning = false
+                                    }
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                .buttonStyle(.glassProminent)
+                            } else {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.35)) {
+                                        showLargeDataWarning = false
+                                    }
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(maxWidth: 500)
+                        .padding(.bottom, 20)
+                    }
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.easeInOut, value: showLargeDataWarning)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .allowsHitTesting(true)
+            }
+        }
     }
     
-    private func createSettingsPanel(HistoricalSelect: Binding<Bool>, PastSelect: Binding<Bool>) -> NSPanel? {
+    private func createSettingsPanel(historicalSelect: Binding<Bool>, pastSelect: Binding<Bool>) -> NSPanel? {
         if settingsPanel == nil {
             let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:450,height:450), styleMask: [.unifiedTitleAndToolbar, .borderless, .titled, .closable, .hudWindow, .utilityWindow], backing: .buffered, defer: false)
             
@@ -180,7 +292,7 @@ struct ContentView: View {
             panel.hidesOnDeactivate = true
             panel.isReleasedWhenClosed = false
             panel.title = "Settings"
-            panel.contentView = NSHostingView(rootView: SettingsView(PastSelect: $PastSelect, HistoricalSelect: $HistoricalSelect, dataRange: $dataRange))//, MBEVisible: $MBEVisible))
+            panel.contentView = NSHostingView(rootView: SettingsView(pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange))//, MBEVisible: $MBEVisible))
             
             panel.isOpaque = false
             panel.backgroundColor = .clear
@@ -202,19 +314,19 @@ struct ContentView: View {
 struct SidebarView: View {
     @Binding var earthquakes: [Earthquake]
     @Binding var historicEarthquakes: [Earthquake]
-    @Binding var PastSelect: Bool
-    @Binding var HistoricalSelect: Bool
+    @Binding var pastSelect: Bool
+    @Binding var historicalSelect: Bool
     @Binding var dataRange: Int
     @Binding var selectedEarthquakeID: String?
     @State private var selectedEarthquake: Earthquake? = nil
     @State private var showPopover: Bool=false
-
+    
     var body: some View {
         List {
-            if PastSelect {
+            if pastSelect {
                 pastDaySection()
             }
-            if HistoricalSelect {
+            if historicalSelect {
                 historicalSection()
             }
             
@@ -222,15 +334,15 @@ struct SidebarView: View {
         .listStyle(SidebarListStyle())
         .background(Color.clear.background(.thinMaterial))
         .navigationTitle("Earthquakes")
-//        .onAppear {
-//            if let id=selectedEarthquakeID {
-//                if let i=earthquakes.firstIndex(where: {$0.id==id}) {
-//                    self.selectedEarthquake = earthquakes[i]
-//                } else if let i=historicEarthquakes.firstIndex(where: {$0.id==id}) {
-//                    self.selectedEarthquake = historicEarthquakes[i]
-//                }
-//            }
-//        }
+        //        .onAppear {
+        //            if let id=selectedEarthquakeID {
+        //                if let i=earthquakes.firstIndex(where: {$0.id==id}) {
+        //                    self.selectedEarthquake = earthquakes[i]
+        //                } else if let i=historicEarthquakes.firstIndex(where: {$0.id==id}) {
+        //                    self.selectedEarthquake = historicEarthquakes[i]
+        //                }
+        //            }
+        //        }
     }
     
     @ViewBuilder
@@ -536,10 +648,36 @@ struct EarthView: View {
     @State private var debounceTimer: Timer?
     @Binding var earthquakes: [Earthquake]
     @Binding var historicEarthquakes: [Earthquake]
-    @Binding var PastSelect: Bool
-    @Binding var HistoricalSelect: Bool
+    @Binding var pastSelect: Bool
+    @Binding var historicalSelect: Bool
     @Binding var dataRange: Int
     @Binding var selectedEarthquakeID: String?
+    @Binding var isLoading: Bool
+    
+    private static let pinGeo: SCNSphere = {
+        let sphere = SCNSphere(radius: 0.012)
+        return sphere
+    }()
+    
+    private static let materialCache: [String: SCNMaterial] = {
+        var cache: [String: SCNMaterial] = [:]
+        let colors = [
+            "red": NSColor(red: 117/255.0, green: 20/255.0, blue: 12/255.0, alpha: 1),
+            "orange": NSColor(red: 249/255.0, green: 127/255.0, blue: 73/255.0, alpha: 1),
+            "yellow": NSColor(red: 255/255.0, green: 255/255.0, blue: 84/255.0, alpha: 1),
+            "lightgreen": NSColor(red: 191/255.0, green: 253/255.0, blue: 91/255.0, alpha: 1),
+            "green": NSColor(red: 175/255.0, green: 249/255.0, blue: 162/255.0, alpha: 1),
+            "lightblue": NSColor(red: 188/255.0, green: 236/255.0, blue: 237/255.0, alpha: 1),
+            "white": NSColor(red: 255/255.0, green: 255/255.0, blue: 255/255.0, alpha: 1)
+        ]
+        
+        for (key, color) in colors {
+            let material = SCNMaterial()
+            material.diffuse.contents = color
+            cache[key] = material
+        }
+        return cache
+    }()
     
     var body: some View {
         ZStack {
@@ -555,24 +693,24 @@ struct EarthView: View {
                     setupScene()
                     fetchEarthquakeData()
                 }
-                .onChange(of: PastSelect, initial: true, {
+                .onChange(of: pastSelect, initial: true, {
                     scene.rootNode.childNodes.filter {
                         $0.name?.starts(with: "EPD") ?? false
                     }.forEach {
                         $0.removeFromParentNode()
                     }
                 })
-                .onChange(of: HistoricalSelect, initial: true, {
+                .onChange(of: historicalSelect, initial: true, {
                     scene.rootNode.childNodes.filter {
                         $0.name?.starts(with: "EH") ?? false
                     }.forEach {
                         $0.removeFromParentNode()
                     }
                 })
-                .onChange(of: PastSelect, initial: false, {
+                .onChange(of: pastSelect, initial: false, {
                     fetchEarthquakeData()
                 })
-                .onChange(of: HistoricalSelect, initial: false, {
+                .onChange(of: historicalSelect, initial: false, {
                     fetchEarthquakeData()
                 })
                 .onChange(of: dataRange, initial: false, {
@@ -590,24 +728,24 @@ struct EarthView: View {
                     setupScene()
                     fetchEarthquakeData()
                 }
-                .onChange(of: PastSelect) { _ in
+                .onChange(of: pastSelect) { _ in
                     scene.rootNode.childNodes.filter {
                         $0.name?.starts(with: "EPD") ?? false
                     }.forEach {
                         $0.removeFromParentNode()
                     }
                 }
-                .onChange(of: HistoricalSelect) { _ in
+                .onChange(of: historicalSelect) { _ in
                     scene.rootNode.childNodes.filter {
                         $0.name?.starts(with: "EH") ?? false
                     }.forEach {
                         $0.removeFromParentNode()
                     }
                 }
-                .onChange(of: PastSelect) { _ in
+                .onChange(of: pastSelect) { _ in
                     fetchEarthquakeData()
                 }
-                .onChange(of: HistoricalSelect) { _ in
+                .onChange(of: historicalSelect) { _ in
                     fetchEarthquakeData()
                 }
                 .onChange(of: dataRange) { _ in
@@ -654,6 +792,7 @@ struct EarthView: View {
     }
     
     func fetchEarthquakeData() {
+        isLoading = true
         debounceTimer?.invalidate()
         debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
             self.fetchEarthquakeDataDebounce()
@@ -674,28 +813,108 @@ struct EarthView: View {
         
         guard let url = URL(string: urlString) else {return}
         
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.urlCache = nil
-        
-        let session = URLSession(configuration: config)
-        
-       session.dataTask(with: url) { data, _, error in
-            guard let data=data, error==nil else { return }
-            print("fetched data")
+        Task.detached(priority: .userInitiated) {
             do {
-                if let geoJSON = try JSONSerialization.jsonObject(with: data) as? [String: Any], let features = geoJSON["features"] as? [[String: Any]] {
-                    DispatchQueue.main.async {
-                        print("updating")
-                        self.updateEarquakeList(features)
-                        let select = PastSelect && !HistoricalSelect ? 0 : HistoricalSelect && !PastSelect ? 1 : 2
-                        self.updateEarthquakePins(features, select)
+                let (data, _) = try await URLSession.shared.data(from: url)
+                let any = try JSONSerialization.jsonObject(with: data)
+                guard let geoJSON = any as? [String: Any], let features = geoJSON["features"] as? [[String: Any]] else {
+                    await MainActor.run { self.isLoading = false }
+                    return
+                }
+
+                let chunkSize = 100
+                let chunks = features.chunked(chunkSize)
+                var totalCount = 0
+
+                for c in chunks {
+                    let chunkRes = await self.processFeatChunk(c)
+                    totalCount += chunkRes.count
+
+                    if totalCount % (chunkSize * 2) == 0 {
+                        await MainActor.run {
+                            var existing = self.earthquakes
+                            let existingIDs = Set(existing.map { $0.id })
+                            let newOnes = chunkRes.filter { !existingIDs.contains($0.id) }
+                            existing.append(contentsOf: newOnes)
+                            self.earthquakes = existing
+                        }
+                    } else {
+                        await MainActor.run {
+                            var existing = self.earthquakes
+                            let existingIDs = Set(existing.map { $0.id })
+                            let newOnes = chunkRes.filter { !existingIDs.contains($0.id) }
+                            existing.append(contentsOf: newOnes)
+                            self.earthquakes = existing
+                        }
                     }
                 }
+
+                await MainActor.run {
+                    let select = self.pastSelect && !self.historicalSelect ? 0 : self.historicalSelect && !self.pastSelect ? 1 : 2
+                    self.updateEarthquakePins(features, select)
+                    self.isLoading = false
+                }
             } catch {
-                print("Failed to parse GeoJSON: \(error)")
+                await MainActor.run { self.isLoading = false }
             }
-        }.resume()
+        }
+    }
+    
+    private func processFeatChunk(_ features: [[String: Any]]) -> [Earthquake] {
+        var earthquakes: [Earthquake] = []
+        
+        for feature in features {
+            if let properties = feature["properties"] as? [String: Any],
+               let mag = properties["mag"] as? Double,
+               let place = properties["place"] as? String,
+               let url = properties["url"] as? String,
+               let eid = feature["id"] as? String,
+               let time = properties["time"] as? Int64,
+               let geo = feature["geometry"] as? [String: Any],
+               let coords = geo["coordinates"] as? [Double],
+               let sig = properties["sig"] as? Double {
+                
+                let MMI: Double? = {
+                    if let mmi = properties["cdi"] {
+                        return mmi is NSNull ? nil : mmi as? Double
+                    }
+                    return nil
+                }()
+                
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                let formattedTime = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(time / 1000)))
+                
+                let stateRegex = /of (.*)/
+                var state = place.capitalized
+                
+                do {
+                    if let stateMatch = try stateRegex.firstMatch(in: place) {
+                        state = String(String(stateMatch.0).dropFirst(3))
+                    } else {
+                        state = place.capitalized
+                    }
+                } catch {
+                    print("Failed to found state in \(place.capitalized)")
+                }
+                
+                earthquakes.append(Earthquake(
+                    id: eid,
+                    mag: mag,
+                    MMI: MMI,
+                    sig: sig,
+                    loc: place,
+                    place: state,
+                    lat: coords[1],
+                    lon: coords[0],
+                    depth: coords[2],
+                    url: url,
+                    time: formattedTime
+                ))
+            }
+        }
+        
+        return earthquakes
     }
     
     func updateEarquakeList(_ features: [[String: Any]]) {
@@ -737,48 +956,122 @@ struct EarthView: View {
     }
     
     func updateEarthquakePins(_ features: [[String: Any]], _ select: Int) { // 0: Past x, 1: Historical, 2: both
-        scene.rootNode.childNodes.filter {
+        let nToRemove = scene.rootNode.childNodes.filter {
             $0.name?.starts(with: "E") ?? false
-        }.forEach {
-            $0.removeFromParentNode()
         }
         
-        if select==0 || select==2 {
-            for feature in features {
-                if let geo = feature["geometry"] as? [String: Any], let coord = geo["coordinates"] as? [Double], coord.count>=2, let properties = feature["properties"] as? [String: Any], let mag=properties["mag"] as? Double, let id=feature["id"] {
-                    //print("Adding pin at \(coord[1]),\(coord[0])")
-                    addEarthquakePin(lat:coord[1], lon:coord[0], mag:mag, id:id as! String, first: "PD")
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0
+        nToRemove.forEach {$0.removeFromParentNode()}
+        SCNTransaction.commit()
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            var pinNodes: [SCNNode] = []
+            
+            if select==0 || select==2 {
+                for feature in features {
+                    if let geo = feature["geometry"] as? [String: Any], let coord = geo["coordinates"] as? [Double], coord.count>=2, let properties = feature["properties"] as? [String: Any], let mag=properties["mag"] as? Double, let id=feature["id"] {
+                        //print("Adding pin at \(coord[1]),\(coord[0])")
+                        //                        addEarthquakePin(lat:coord[1], lon:coord[0], mag:mag, id:id as! String, first: "PD")
+                        let pinNode = self.createPinNode(
+                            color: self.getMagColor(mag),
+                            position: self.convertCoordinatesTo3D(lat: coord[1], lon: coord[0]),
+                            id: "EPDEarthquakePin_\(id)"
+                        )
+                        pinNodes.append(pinNode)
+                    }
+                }
+            }
+            
+            if select == 1 || select == 2 {
+                for e in self.historicEarthquakes {
+                    if let lat = e.lat, let lon = e.lon {
+                        let node = self.createPinNode(
+                            color: self.getMagColor(e.mag),
+                            position: self.convertCoordinatesTo3D(lat: lat, lon: lon),
+                            id: "EHEarthquakePin_\(e.id)"
+                        )
+                        pinNodes.append(node)
+                    }
+                }
+            }
+            
+            let batchSize = 50
+            for batch in pinNodes.chunked(batchSize) {
+                DispatchQueue.main.async {
+                    SCNTransaction.begin()
+                    SCNTransaction.animationDuration = 0
+                    batch.forEach { self.scene.rootNode.addChildNode($0) }
+                    SCNTransaction.commit()
                 }
             }
         }
         
-        if select==1 || select==2 {
-            for e in historicEarthquakes {
-                addEarthquakePin(lat: e.lat!, lon: e.lon!, mag: e.mag, id: e.id, first: "H")
-            }
+        //        if select==1 || select==2 {
+        //            for e in historicEarthquakes {
+        //                addEarthquakePin(lat: e.lat!, lon: e.lon!, mag: e.mag, id: e.id, first: "H")
+        //            }
+        //        }
+    }
+    
+    private func getMagColor(_ mag: Double) -> NSColor {
+        switch mag {
+        case _ where mag >= 7:
+            return NSColor(red: 117/255.0, green: 20/255.0, blue: 12/255.0, alpha: 1)
+        case _ where mag >= 6:
+            return NSColor(red: 249/255.0, green: 127/255.0, blue: 73/255.0, alpha: 1)
+        case _ where mag >= 5:
+            return NSColor(red: 255/255.0, green: 255/255.0, blue: 84/255.0, alpha: 1)
+        case _ where mag >= 4:
+            return NSColor(red: 191/255.0, green: 253/255.0, blue: 91/255.0, alpha: 1)
+        case _ where mag >= 3:
+            return NSColor(red: 175/255.0, green: 249/255.0, blue: 162/255.0, alpha: 1)
+        case _ where mag >= 2:
+            return NSColor(red: 188/255.0, green: 236/255.0, blue: 237/255.0, alpha: 1)
+        default:
+            return NSColor(red: 255/255.0, green: 255/255.0, blue: 255/255.0, alpha: 1)
         }
-
     }
     
-    func addEarthquakePin(lat:Double, lon:Double, mag:Double, id:String, first:String) {
-        let pinNode = createPinNode(color: mag>=7 ? NSColor(red: 117/255.0, green: 20/255.0, blue: 12/255.0, alpha: 1) : mag>=6 ? NSColor(calibratedRed: 249/255.0, green: 127/255.0, blue: 73/255.0, alpha: 1) : mag>=5 ? NSColor(calibratedRed: 255/255.0, green: 255/255.0, blue: 84/255.0, alpha: 1) : mag>=4 ? NSColor(calibratedRed: 191/255.0, green: 253/255.0, blue: 91/255.0, alpha: 1) : mag>=3 ? NSColor(calibratedRed: 175/255.0, green: 249/255.0, blue: 162/255.0, alpha: 1) : mag>=2 ? NSColor(calibratedRed: 188/255.0, green: 236/255.0, blue: 237/255.0, alpha: 1) : NSColor(calibratedRed: 255/255.0, green: 255/255.0, blue: 255/255.0, alpha: 1))
-        pinNode.position = convertCoordinatesTo3D(lat: lat, lon: lon)
-        pinNode.name = "E\(first)EarthquakePin_\(id)"
-//        pinNode.selectHandler = {
-//            self.selectedEarthquakeID = id
-//        }
+    private func getMagColorKey(_ color: NSColor) -> String {
+        let red = Int(round(color.redComponent * 255))
+        let green = Int(round(color.greenComponent * 255))
+        let blue = Int(round(color.blueComponent * 255))
         
-        scene.rootNode.addChildNode(pinNode)
+        switch (red, green, blue) {
+        case (117, 20, 12):
+            return "red"
+        case (249, 127, 73):
+            return "orange"
+        case (255, 255, 84):
+            return "yellow"
+        case (191, 253, 91):
+            return "lightgreen"
+        case (175, 249, 162):
+            return "green"
+        case (188, 236, 237):
+            return "lightblue"
+        default:
+            return "white"
+        }
     }
     
-    func createPinNode(color: NSColor = NSColor.white) -> SCNNode {
-        let sphere = SCNSphere(radius: 0.012)
-        sphere.firstMaterial?.diffuse.contents = color
+    func createPinNode(color: NSColor = .white, position: SCNVector3, id: String) -> SCNNode {
+        let geo = Self.pinGeo.copy() as! SCNGeometry
+        let node = SCNNode(geometry: geo)
         
-        let pinNode = SCNNode(geometry: sphere)
-        pinNode.position = SCNVector3(0,0.05,0)
+        let colorKey = getMagColorKey(color)
+        if let cachedMaterial = Self.materialCache[colorKey] {
+            node.geometry?.materials = [cachedMaterial]
+        } else {
+            let material = SCNMaterial()
+            material.diffuse.contents = color
+            node.geometry?.materials = [material]
+        }
         
-        return pinNode
+        node.position = position
+        node.name = id
+        return node
     }
     
     func convertCoordinatesTo3D(lat:Double, lon:Double) -> SCNVector3 {
@@ -807,64 +1100,64 @@ struct EarthView: View {
         sphere.materials = [material]
         
         let earthNode = SCNNode(geometry: sphere)
-//        let rotateAction = SCNAction.rotateBy(x:0, y:.pi*2, z:0, duration: 45)
-//        let repeatRotation = SCNAction.repeatForever(rotateAction)
-//        earthNode.runAction(repeatRotation)
+        //        let rotateAction = SCNAction.rotateBy(x:0, y:.pi*2, z:0, duration: 45)
+        //        let repeatRotation = SCNAction.repeatForever(rotateAction)
+        //        earthNode.runAction(repeatRotation)
         
         return earthNode
     }
 }
 
 struct SettingsView: View {
-    @Binding var PastSelect: Bool
-    @Binding var HistoricalSelect: Bool
+    @Binding var pastSelect: Bool
+    @Binding var historicalSelect: Bool
     @Binding var dataRange: Int
     
     var body: some View {
         VStack {
-//            Text("Settings")
-//                .font(.headline)
-//                .bold()
-//                .padding(.top, 10)
+            //            Text("Settings")
+            //                .font(.headline)
+            //                .bold()
+            //                .padding(.top, 10)
             HStack {
                 Text("Show: ")
                     .padding()
                 if #available(macOS 14.0, *) {
-                    Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $PastSelect)
+                    Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $pastSelect)
                         .toggleStyle(.checkbox)
-                        .onChange(of: PastSelect, initial: false) {
-                            if !HistoricalSelect && !PastSelect {
-                                PastSelect=true
+                        .onChange(of: pastSelect, initial: false) {
+                            if !historicalSelect && !pastSelect {
+                                pastSelect=true
                             }
                         }
-                    Toggle("Historical", isOn: $HistoricalSelect)
+                    Toggle("Historical", isOn: $historicalSelect)
                         .toggleStyle(.checkbox)
-                        .onChange(of: HistoricalSelect, initial: false) {
-                            if !PastSelect && !HistoricalSelect {
-                                HistoricalSelect=true
+                        .onChange(of: historicalSelect, initial: false) {
+                            if !pastSelect && !historicalSelect {
+                                historicalSelect=true
                             }
                         }
                 } else {
-                    Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $PastSelect)
+                    Toggle("Past \(dataRange==0 ? "Day" : dataRange==1 ? "Week" : "Month")", isOn: $pastSelect)
                         .toggleStyle(.checkbox)
-                        .onChange(of: PastSelect) { _ in
-                            if !HistoricalSelect && !PastSelect {
-                                PastSelect=true
+                        .onChange(of: pastSelect) { _ in
+                            if !historicalSelect && !pastSelect {
+                                pastSelect=true
                             }
                         }
-                    Toggle("Historical", isOn: $HistoricalSelect)
+                    Toggle("Historical", isOn: $historicalSelect)
                         .toggleStyle(.checkbox)
-                        .onChange(of: HistoricalSelect) { _ in
-                            if !PastSelect && !HistoricalSelect {
-                                HistoricalSelect=true
+                        .onChange(of: historicalSelect) { _ in
+                            if !pastSelect && !historicalSelect {
+                                historicalSelect=true
                             }
                         }
                 }
             }.padding()
         }
         .padding(.top)
-//        .background(Color.clear.background(.regularMaterial))
-//        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        //        .background(Color.clear.background(.regularMaterial))
+        //        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         Picker("Data range: ", selection: $dataRange) {
             HStack {
                 Text("Past Day")
