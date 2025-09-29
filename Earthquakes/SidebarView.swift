@@ -16,6 +16,8 @@ struct SidebarView: View {
     @Binding var selectedEarthquakeID: String?
     @State private var selectedEarthquake: Earthquake? = nil
     @State private var showPopover: Bool=false
+    @State private var idIndex: [String: Earthquake] = [:]
+    @State private var indexRebuildWorkItem: DispatchWorkItem?
     
     var body: some View {
         ScrollViewReader { proxy in
@@ -31,6 +33,15 @@ struct SidebarView: View {
             .listStyle(SidebarListStyle())
             .background(Color.clear.background(.thinMaterial))
             .navigationTitle("Earthquakes")
+            .onAppear {
+                scheduleIndexRebuild()
+            }
+            .onChange(of: earthquakes, initial: false) {_,_ in
+                scheduleIndexRebuild()
+            }
+            .onChange(of: historicEarthquakes, initial: false) {_,_ in
+                scheduleIndexRebuild()
+            }
             .onChange(of: selectedEarthquakeID, initial: false) { newID, _ in
                 print("SidebarView: selectedEarthquakeID changed to: \(newID ?? "nil")")
                 guard let id = newID else {
@@ -38,7 +49,8 @@ struct SidebarView: View {
                     showPopover = false
                     return
                 }
-                if let match = earthquakes.first(where: { $0.id == id }) ?? historicEarthquakes.first(where: { $0.id == id }) {
+                
+                if let match = idIndex[id]/*earthquakes.first(where: { $0.id == id }) ?? historicEarthquakes.first(where: { $0.id == id })*/ {
                     print("SidebarView: Found matching earthquake: \(match.id)")
                     selectedEarthquake = match
                     showPopover = true
@@ -51,6 +63,21 @@ struct SidebarView: View {
                 }
             }
         }
+    }
+    
+    private func scheduleIndexRebuild() {
+        indexRebuildWorkItem?.cancel()
+        let work = DispatchWorkItem { [earthquakes, historicEarthquakes] in
+            let combined = earthquakes+historicEarthquakes
+            var dict = [String: Earthquake](minimumCapacity: combined.count)
+            for e in combined { dict[e.id]=e }
+            DispatchQueue.main.async {
+                self.idIndex = dict
+            }
+        }
+        
+        indexRebuildWorkItem = work
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now()+0.2, execute: work)
     }
     
     @ViewBuilder

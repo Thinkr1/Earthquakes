@@ -142,11 +142,14 @@ struct EarthView: View {
         isLoading = true
         debounceTimer?.invalidate()
         debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
-            self.fetchEarthquakeDataDebounce()
+            Task { await self.fetchEarthquakeDataDebounce() }
         }
     }
     
-    func fetchEarthquakeDataDebounce() {
+    func fetchEarthquakeDataDebounce() async {
+        await MainActor.run {
+            self.earthquakes.removeAll()
+        }
         let urlString: String
         // Geological data provided by the U.S. Geological Survey (USGS)
         switch dataRange {

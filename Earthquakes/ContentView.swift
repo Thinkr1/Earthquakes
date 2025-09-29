@@ -23,6 +23,11 @@ struct Earthquake: Identifiable, Equatable {
     let depth: Double
     let url: String
     let time: String
+    
+//    var coordinate: CLLocationCoordinate2D? {
+//        guard let lat = lat, let lon = lon else { return nil }
+//        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+//    }
 }
 
 extension Double {
@@ -146,7 +151,9 @@ struct ClickableSceneView: NSViewRepresentable {
             let components = name.split(separator: "_")
             if let idPart = components.last {
                 print("ClickableSceneView: extracted ID: \(idPart)")
-                onNodeClick(String(idPart))
+                DispatchQueue.main.async {
+                    self.onNodeClick(String(idPart))
+                }
             } else {
                 print("ClickableSceneView: could not extract ID from name: \(name)")
             }
@@ -200,12 +207,14 @@ struct ContentView: View {
                         HStack(spacing: 20) {
                             HStack {
                                 Button {
-                                    withAnimation {
-                                        isLoading = true
-                                    }
-                                    EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID, isLoading: $isLoading).fetchEarthquakeData()
-                                    withAnimation {
-                                        isLoading = false
+                                    Task { @MainActor in
+                                        withAnimation {
+                                            isLoading = true
+                                        }
+                                        await fetchEarthquakeData()
+                                        withAnimation {
+                                            isLoading = false
+                                        }
                                     }
                                 } label: {
                                     Image(systemName: "arrow.clockwise")
@@ -244,12 +253,14 @@ struct ContentView: View {
                     HStack(spacing: 20) {
                         HStack {
                             Button {
-                                withAnimation {
-                                    isLoading = true
-                                }
-                                EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID, isLoading: $isLoading).fetchEarthquakeData()
-                                withAnimation {
-                                    isLoading = false
+                                Task { @MainActor in
+                                    withAnimation {
+                                        isLoading = true
+                                    }
+                                    await fetchEarthquakeData()
+                                    withAnimation {
+                                        isLoading = false
+                                    }
                                 }
                             } label: {
                                 Image(systemName: "arrow.clockwise")
@@ -361,6 +372,86 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .allowsHitTesting(false)
             }
+        }
+    }
+    
+    @MainActor private func fetchEarthquakeData() async {
+        let urlString: String
+        switch dataRange {
+        case 0:
+            urlString = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+        case 1:
+            urlString = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+        default:
+            urlString = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson"
+        }
+
+        guard let url = URL(string: urlString) else { return }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let any = try JSONSerialization.jsonObject(with: data)
+            guard let geoJSON = any as? [String: Any],
+                  let features = geoJSON["features"] as? [[String: Any]] else {
+                return
+            }
+
+            var newQuakes: [Earthquake] = []
+            newQuakes.reserveCapacity(features.count)
+
+            for feature in features {
+                if let properties = feature["properties"] as? [String: Any],
+                   let mag = properties["mag"] as? Double,
+                   let place = properties["place"] as? String,
+                   let url = properties["url"] as? String,
+                   let eid = feature["id"] as? String,
+                   let time = properties["time"] as? Int64,
+                   let geo = feature["geometry"] as? [String: Any],
+                   let coords = geo["coordinates"] as? [Double],
+                   let sig = properties["sig"] as? Double {
+
+                    let MMI: Double? = {
+                        if let mmi = properties["cdi"] {
+                            return mmi is NSNull ? nil : mmi as? Double
+                        }
+                        return nil
+                    }()
+
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                    let formattedTime = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(time / 1000)))
+
+                    let stateRegex = /of (.*)/
+                    var state = place.capitalized
+                    do {
+                        if let stateMatch = try stateRegex.firstMatch(in: place) {
+                            state = String(String(stateMatch.0).dropFirst(3))
+                        } else {
+                            state = place.capitalized
+                        }
+                    } catch {
+                        print("failed to apply regex, keeping capitalised state name")
+                    }
+
+                    newQuakes.append(Earthquake(
+                        id: eid,
+                        mag: mag,
+                        MMI: MMI,
+                        sig: sig,
+                        loc: place,
+                        place: state,
+                        lat: coords.count > 1 ? coords[1] : nil,
+                        lon: coords.first,
+                        depth: coords.count > 2 ? coords[2] : 0,
+                        url: url,
+                        time: formattedTime
+                    ))
+                }
+            }
+
+            self.earthquakes = newQuakes
+        } catch {
+            print("fetching error")
         }
     }
     
