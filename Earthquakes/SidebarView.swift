@@ -14,8 +14,6 @@ struct SidebarView: View {
     @Binding var historicalSelect: Bool
     @Binding var dataRange: Int
     @Binding var selectedEarthquakeID: String?
-    @State private var selectedEarthquake: Earthquake? = nil
-    @State private var showPopover: Bool=false
     @State private var idIndex: [String: Earthquake] = [:]
     @State private var indexRebuildWorkItem: DispatchWorkItem?
     
@@ -42,11 +40,9 @@ struct SidebarView: View {
             .onChange(of: historicEarthquakes, initial: false) {_,_ in
                 scheduleIndexRebuild()
             }
-            .onChange(of: selectedEarthquakeID, initial: false) { newID, _ in
-                print("SidebarView: selectedEarthquakeID changed to: \(newID ?? "nil")")
-                guard let id = newID else {
-                    selectedEarthquake = nil
-                    showPopover = false
+            .onChange(of: selectedEarthquakeID, initial: false) { oldValue, newValue in
+                print("SidebarView: selectedEarthquakeID changed to: \(newValue ?? "nil")")
+                guard let id = newValue else {
                     return
                 }
                 
@@ -54,10 +50,6 @@ struct SidebarView: View {
                     print("SidebarView: Found matching earthquake: \(match.id)")
                     withAnimation(.easeInOut(duration: 0.5)) {
                         proxy.scrollTo(id, anchor: .center)
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        selectedEarthquake = match
-                        showPopover = true
                     }
                 } else {
                     print("SidebarView: No matching earthquake found for ID: \(id)")
@@ -92,8 +84,9 @@ struct SidebarView: View {
     
     private func historicalSectionRow(_ e: Earthquake) -> some View {
         Button(action: {
-            selectedEarthquake = e
-            showPopover = true
+//            selectedEarthquake = e
+//            showPopover = true
+            selectedEarthquakeID = e.id
         }){
             HStack {
                 Circle()
@@ -112,14 +105,16 @@ struct SidebarView: View {
             }
         }.id(e.id)
             .popover(isPresented: Binding(get: {
-                (showPopover && selectedEarthquake?.id == e.id) || selectedEarthquakeID == e.id
-            }, set: {
-                if !$0 {
-                    showPopover=false
-                    selectedEarthquakeID = nil
+                selectedEarthquakeID == e.id
+            }, set: { newVal in
+                if !newVal {
+                    if selectedEarthquakeID == e.id {
+                        selectedEarthquakeID = nil
+                    }
+//                    showPopover = false
                 }
             })) {
-                historicalSectionRowPopoverContent(selectedEarthquake ?? e)
+                historicalSectionRowPopoverContent(/*selectedEarthquake ?? */e)
             }
             .buttonStyle(PlainButtonStyle())
     }
@@ -170,8 +165,9 @@ struct SidebarView: View {
     
     private func pastDaySectionRow(_ e: Earthquake) -> some View {
         Button(action: {
-            selectedEarthquake = e
-            showPopover = true
+//            selectedEarthquake = e
+//            showPopover = true
+            selectedEarthquakeID = e.id
         }){
             HStack {
                 Circle()
@@ -200,14 +196,16 @@ struct SidebarView: View {
             }
         }.id(e.id)
             .popover(isPresented: Binding(get: {
-                (showPopover && selectedEarthquake?.id == e.id) || selectedEarthquakeID == e.id
-            }, set: {
-                if !$0 {
-                    showPopover=false
-                    selectedEarthquakeID = nil
+                selectedEarthquakeID == e.id
+            }, set: { newVal in
+                if !newVal {
+                    if selectedEarthquakeID == e.id {
+                        selectedEarthquakeID = nil
+                    }
+//                    showPopover = false
                 }
             })) {
-                pastDaySectionRowPopoverContent(selectedEarthquake ?? e)
+                pastDaySectionRowPopoverContent(/*selectedEarthquake ?? */e)
             }
             .buttonStyle(PlainButtonStyle())
     }

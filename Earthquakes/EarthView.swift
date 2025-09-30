@@ -91,7 +91,7 @@ struct EarthView: View {
             
             print("EarthView: selectedEarthquakeID changed to: \(id)")
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 let pdPinName = "EPDEarthquakePin_\(id)"
                 let hPinName = "EHEarthquakePin_\(id)"
                 
@@ -143,7 +143,7 @@ struct EarthView: View {
         let newCamPos = SCNVector3(dir.x/length * camDist, dir.y/length * camDist, dir.z/length * camDist)
         
         SCNTransaction.begin()
-        SCNTransaction.animationDuration = 1.0
+        SCNTransaction.animationDuration = 0.7
         camNode.position = newCamPos
         camNode.look(at: SCNVector3(0,0,0))
         SCNTransaction.commit()
