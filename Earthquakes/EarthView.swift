@@ -14,6 +14,8 @@ struct EarthView: View {
     //    @State private var showPopover: Bool = false
     //    @State private var popoverAnchor: CGPoint = .zero
     @State private var debounceTimer: Timer?
+    @State private var isCameraAnimating: Bool = false
+    @State private var sceneView: SCNView?
     @Binding var earthquakes: [Earthquake]
     @Binding var historicEarthquakes: [Earthquake]
     @Binding var pastSelect: Bool
@@ -50,7 +52,7 @@ struct EarthView: View {
     
     var body: some View {
         ZStack {
-            ClickableSceneView(scene: scene) { id in
+            ClickableSceneView(scene: scene, sceneViewRef: $sceneView) { id in
                 selectedEarthquakeID = id
             }
             .ignoresSafeArea()
@@ -84,6 +86,10 @@ struct EarthView: View {
             fetchEarthquakeData()
         })
         .onChange(of: selectedEarthquakeID, initial: false) { oldValue, newValue in
+            if newValue == nil && isCameraAnimating {
+                print("EarthView: Ignoring selection clear during camera animation")
+                return
+            }
             guard let id = newValue else {
                 print("EarthView: selectedEarthquakeID cleared")
                 return
@@ -91,22 +97,29 @@ struct EarthView: View {
             
             print("EarthView: selectedEarthquakeID changed to: \(id)")
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                let pdPinName = "EPDEarthquakePin_\(id)"
-                let hPinName = "EHEarthquakePin_\(id)"
-                
-                print("EarthView: Looking for pins: \(pdPinName) or \(hPinName)")
-                
+            let pdPinName = "EPDEarthquakePin_\(id)"
+            let hPinName = "EHEarthquakePin_\(id)"
+            
+            func attemptAnimation(retryCount: Int = 0) {
                 if let _ = scene.rootNode.childNode(withName: pdPinName, recursively: true) {
                     print("EarthView: Found past earthquake pin: \(pdPinName)")
                     animateCameraToPin(id: pdPinName)
                 } else if let _ = scene.rootNode.childNode(withName: hPinName, recursively: true) {
                     print("EarthView: Found historic earthquake pin: \(hPinName)")
                     animateCameraToPin(id: hPinName)
+                } else if retryCount < 20 { // retry for up to 2s
+                    print("EarthView: Pin not found, retrying... (\(retryCount + 1)/20)")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        attemptAnimation(retryCount: retryCount + 1)
+                    }
                 } else {
-                    print("EarthView: Pin not found in scene for ID: \(id)")
+                    print("EarthView: Pin not found after retries for ID: \(id)")
                     print("EarthView: Available pins: \(scene.rootNode.childNodes.filter { $0.name?.starts(with: "E") ?? false }.map { $0.name ?? "unnamed" })")
                 }
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                attemptAnimation()
             }
         }
     }
@@ -126,6 +139,11 @@ struct EarthView: View {
     }
     
     func animateCameraToPin(id: String) {
+        guard !isCameraAnimating else {
+            print("Camera animation already in progress, ignoring")
+            return
+        }
+        
         guard let pinNode = scene.rootNode.childNode(withName: id, recursively: true) else {
             print("Pin not found: \(id)")
             return
@@ -142,11 +160,37 @@ struct EarthView: View {
         let camDist: CGFloat = 3.0
         let newCamPos = SCNVector3(dir.x/length * camDist, dir.y/length * camDist, dir.z/length * camDist)
         
+        isCameraAnimating = true
+        
+        let wasAllowingCameraControl = sceneView?.allowsCameraControl ?? false
+        sceneView?.allowsCameraControl = false
+        
+        camNode.constraints = []
+        
+        if let view = sceneView {
+            view.pointOfView = camNode
+        }
+        
         SCNTransaction.begin()
         SCNTransaction.animationDuration = 0.7
+        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        SCNTransaction.completionBlock = {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if wasAllowingCameraControl {
+                    self.sceneView?.allowsCameraControl = true
+                }
+                self.isCameraAnimating = false
+                print("Camera animation completed")
+            }
+        }
         camNode.position = newCamPos
-        camNode.look(at: SCNVector3(0,0,0))
+        let lookConstraint = SCNLookAtConstraint(target: scene.rootNode)
+        lookConstraint.isGimbalLockEnabled = true
+        camNode.constraints = [lookConstraint]
+//        camNode.look(at: SCNVector3(0, 0, 0), up: SCNVector3(0, 1, 0), localFront: SCNVector3(0, 0, -1))
         SCNTransaction.commit()
+        
+        print("Camera animated to pos: \(newCamPos)")
     }
     
     func fetchEarthquakeData() {
@@ -476,5 +520,126 @@ struct EarthView: View {
         //        earthNode.runAction(repeatRotation)
         
         return earthNode
+    }
+}
+
+struct ClickableSceneView: NSViewRepresentable {
+    let scene: SCNScene
+    @Binding var sceneViewRef: SCNView?
+    var onNodeClick: (String) -> Void
+    
+    class ClickableSCNView: SCNView {
+        weak var coordinator: Coordinator?
+        override var acceptsFirstResponder: Bool { true }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.makeFirstResponder(self)
+        }
+        override func mouseDown(with event: NSEvent) {
+            guard let coordinator = coordinator else { return super.mouseDown(with: event) }
+            let location = convert(event.locationInWindow, from: nil)
+            coordinator.performHitTest(at: location, in: self)
+            super.mouseDown(with: event)
+        }
+    }
+    
+    func makeNSView(context: Context) -> SCNView {
+        let scnView = ClickableSCNView()
+        scnView.translatesAutoresizingMaskIntoConstraints = false
+        scnView.scene = scene
+        scnView.allowsCameraControl = true
+        scnView.autoenablesDefaultLighting = true
+        scnView.backgroundColor = .clear
+        scnView.isPlaying = true
+        scnView.delegate = context.coordinator
+        scnView.coordinator = context.coordinator
+        
+        context.coordinator.view = scnView
+        DispatchQueue.main.async {
+            sceneViewRef = scnView
+        }
+        return scnView
+    }
+    
+    func updateNSView(_ nsView: SCNView, context: Context) {
+        nsView.scene = scene
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onNodeClick: onNodeClick)
+    }
+    
+    class Coordinator: NSObject, SCNSceneRendererDelegate, NSGestureRecognizerDelegate {
+        var onNodeClick: (String) -> Void
+        weak var view: SCNView?
+        
+        init(onNodeClick: @escaping (String) -> Void) {
+            self.onNodeClick = onNodeClick
+        }
+        
+        @objc func handleClick(_ gesture: NSClickGestureRecognizer) {
+            guard let view = view else { return }
+            let location = gesture.location(in: view)
+            print("ClickableSceneView: click at \(location)")
+            let results = view.hitTest(location, options: [SCNHitTestOption.boundingBoxOnly: true])
+            guard var node = results.first?.node else {
+                print("ClickableSceneView: no node hit")
+                return
+            }
+            while node.name == nil, let parent = node.parent {
+                node = parent
+            }
+            guard let name = node.name else {
+                print("ClickableSceneView: hit unnamed node")
+                return
+            }
+            print("ClickableSceneView: hit node named \(name)")
+            if let idPart = name.split(separator: "_").last {
+                onNodeClick(String(idPart))
+            }
+        }
+        
+        func performHitTest(at location: NSPoint, in view: SCNView) {
+            print("ClickableSceneView: mouseDown at \(location)")
+            
+            let options: [SCNHitTestOption: Any] = [
+                SCNHitTestOption.searchMode: SCNHitTestSearchMode.closest.rawValue,
+                SCNHitTestOption.ignoreChildNodes: false,
+                SCNHitTestOption.boundingBoxOnly: true, // faster than triangle-lvl tests
+                SCNHitTestOption.firstFoundOnly: true,
+                SCNHitTestOption.categoryBitMask: 0x2 // only consider "pin" nodes
+            ]
+            
+            let results = view.hitTest(location, options: options)
+            
+            guard let result = results.first else {
+                print("ClickableSceneView: no node hit (mouseDown)")
+                return
+            }
+            
+            var node = result.node
+            print("ClickableSceneView: initial hit node: \(node)")
+            
+            while node.name == nil, let parent = node.parent {
+                node = parent
+            }
+            
+            guard let name = node.name else {
+                print("ClickableSceneView: hit unnamed node (mouseDown)")
+                return
+            }
+            
+            print("ClickableSceneView: hit node named \(name) (mouseDown)")
+            
+            let components = name.split(separator: "_")
+            if let idPart = components.last {
+                print("ClickableSceneView: extracted ID: \(idPart)")
+                DispatchQueue.main.async {
+                    self.onNodeClick(String(idPart))
+                }
+            } else {
+                print("ClickableSceneView: could not extract ID from name: \(name)")
+            }
+        }
     }
 }
