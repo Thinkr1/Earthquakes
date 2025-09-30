@@ -191,6 +191,21 @@ struct ContentView: View {
     @State private var selectedEarthquakeID: String? = nil
     @State private var isLoading: Bool = false
     @State private var showLargeDataWarning: Bool = false
+    @State private var searchText: String = ""
+
+    private var searchResults: [Earthquake] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty { return [] }
+        let all = earthquakes + historicEarthquakes
+        return all.filter { e in
+            e.loc.localizedCaseInsensitiveContains(query) ||
+            e.place.localizedCaseInsensitiveContains(query) ||
+            e.id.localizedCaseInsensitiveContains(query)
+        }
+        .sorted { a, b in a.time > b.time }
+        .prefix(25)
+        .map { $0 }
+    }
 
     var body: some View {
         ZStack {
@@ -289,6 +304,52 @@ struct ContentView: View {
                                 .frame(width: 28, height: 28)
                         }
                     }
+                }
+            }
+            .searchable(text: $searchText, placement: .toolbar, prompt: "Search earthquakes")
+            .searchSuggestions {
+                if !searchResults.isEmpty {
+                    ForEach(searchResults, id: \.id) { e in
+                        Button(action: {
+                            handleSearchSelection(e)
+                        }) {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(Color(
+                                        red: 0.0 + min(max((e.mag - 2.0)/5.0, 0), 1) * 0.46,
+                                        green: 1.0 - min(max((e.mag - 2.0)/5.0, 0), 1) * 0.6,
+                                        blue: 0.0 + min(max((e.mag - 2.0)/5.0, 0), 1) * 0.46
+                                    ))
+                                    .frame(width: 10, height: 10)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(e.mag, specifier: "%.1f") • \(e.place)")
+                                        .font(.subheadline)
+                                        .bold()
+                                    Text(e.loc)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else if !searchText.isEmpty {
+                    Text("No results for \"\(searchText)\"")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onSubmit(of: .search) {
+                if let first = searchResults.first {
+                    handleSearchSelection(first)
+//                    let id = first.id
+//                    if earthquakes.contains(where: { $0.id == id }) {
+//                        pastSelect = true
+//                    }
+//                    if historicEarthquakes.contains(where: { $0.id == id }) {
+//                        historicalSelect = true
+//                    }
+//                    selectedEarthquakeID = id
+//                    searchText = ""
                 }
             }
             .onChange(of: dataRange, initial: true) {
@@ -455,6 +516,31 @@ struct ContentView: View {
         }
     }
     
+    private func handleSearchSelection(_ e: Earthquake) {
+        print("Search: Selected earthquake ID: \(e.id)")
+        
+        let inPast = earthquakes.contains(where: { $0.id == e.id })
+        let inHistoric = historicEarthquakes.contains(where: { $0.id == e.id })
+        
+        print("Search: Found in past: \(inPast), historic: \(inHistoric)")
+        
+        if inPast {
+            pastSelect = true
+            print("Search: Enabled pastSelect")
+        }
+        if inHistoric {
+            historicalSelect = true
+            print("Search: Enabled historicalSelect")
+        }
+        
+        searchText = ""
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            print("Search: Setting selectedEarthquakeID to \(e.id)")
+            selectedEarthquakeID = e.id
+        }
+    }
+    
     private func createSettingsPanel(historicalSelect: Binding<Bool>, pastSelect: Binding<Bool>) -> NSPanel? {
         if settingsPanel == nil {
             let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:450,height:450), styleMask: [.unifiedTitleAndToolbar, .borderless, .titled, .closable, .hudWindow, .utilityWindow], backing: .buffered, defer: false)
@@ -487,4 +573,3 @@ struct ContentView: View {
     ContentView()
         .background(Color.black.background(.ultraThinMaterial))
 }
-

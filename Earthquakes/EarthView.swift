@@ -50,75 +50,62 @@ struct EarthView: View {
     
     var body: some View {
         ZStack {
-            if #available(macOS 14.0, *) {
-                ZStack {
-                    ClickableSceneView(scene: scene) { id in
-                        selectedEarthquakeID = id
-                    }
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .onAppear {
-                    setupScene()
-                    fetchEarthquakeData()
-                }
-                .onChange(of: pastSelect, initial: true, {
-                    scene.rootNode.childNodes.filter {
-                        $0.name?.starts(with: "EPD") ?? false
-                    }.forEach {
-                        $0.removeFromParentNode()
-                    }
-                })
-                .onChange(of: historicalSelect, initial: true, {
-                    scene.rootNode.childNodes.filter {
-                        $0.name?.starts(with: "EH") ?? false
-                    }.forEach {
-                        $0.removeFromParentNode()
-                    }
-                })
-                .onChange(of: pastSelect, initial: false, {
-                    fetchEarthquakeData()
-                })
-                .onChange(of: historicalSelect, initial: false, {
-                    fetchEarthquakeData()
-                })
-                .onChange(of: dataRange, initial: false, {
-                    fetchEarthquakeData()
-                })
-            } else {
-                ZStack {
-                    ClickableSceneView(scene: scene) { id in
-                        selectedEarthquakeID = id
-                    }
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .onAppear {
-                    setupScene()
-                    fetchEarthquakeData()
-                }
-                .onChange(of: pastSelect) { _ in
-                    scene.rootNode.childNodes.filter {
-                        $0.name?.starts(with: "EPD") ?? false
-                    }.forEach {
-                        $0.removeFromParentNode()
-                    }
-                }
-                .onChange(of: historicalSelect) { _ in
-                    scene.rootNode.childNodes.filter {
-                        $0.name?.starts(with: "EH") ?? false
-                    }.forEach {
-                        $0.removeFromParentNode()
-                    }
-                }
-                .onChange(of: pastSelect) { _ in
-                    fetchEarthquakeData()
-                }
-                .onChange(of: historicalSelect) { _ in
-                    fetchEarthquakeData()
-                }
-                .onChange(of: dataRange) { _ in
-                    fetchEarthquakeData()
+            ClickableSceneView(scene: scene) { id in
+                selectedEarthquakeID = id
+            }
+            .ignoresSafeArea()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onAppear {
+            setupScene()
+            fetchEarthquakeData()
+        }
+        .onChange(of: pastSelect, initial: true, {
+            scene.rootNode.childNodes.filter {
+                $0.name?.starts(with: "EPD") ?? false
+            }.forEach {
+                $0.removeFromParentNode()
+            }
+        })
+        .onChange(of: historicalSelect, initial: true, {
+            scene.rootNode.childNodes.filter {
+                $0.name?.starts(with: "EH") ?? false
+            }.forEach {
+                $0.removeFromParentNode()
+            }
+        })
+        .onChange(of: pastSelect, initial: false, {
+            fetchEarthquakeData()
+        })
+        .onChange(of: historicalSelect, initial: false, {
+            fetchEarthquakeData()
+        })
+        .onChange(of: dataRange, initial: false, {
+            fetchEarthquakeData()
+        })
+        .onChange(of: selectedEarthquakeID, initial: false) { oldValue, newValue in
+            guard let id = newValue else {
+                print("EarthView: selectedEarthquakeID cleared")
+                return
+            }
+            
+            print("EarthView: selectedEarthquakeID changed to: \(id)")
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                let pdPinName = "EPDEarthquakePin_\(id)"
+                let hPinName = "EHEarthquakePin_\(id)"
+                
+                print("EarthView: Looking for pins: \(pdPinName) or \(hPinName)")
+                
+                if let _ = scene.rootNode.childNode(withName: pdPinName, recursively: true) {
+                    print("EarthView: Found past earthquake pin: \(pdPinName)")
+                    animateCameraToPin(id: pdPinName)
+                } else if let _ = scene.rootNode.childNode(withName: hPinName, recursively: true) {
+                    print("EarthView: Found historic earthquake pin: \(hPinName)")
+                    animateCameraToPin(id: hPinName)
+                } else {
+                    print("EarthView: Pin not found in scene for ID: \(id)")
+                    print("EarthView: Available pins: \(scene.rootNode.childNodes.filter { $0.name?.starts(with: "E") ?? false }.map { $0.name ?? "unnamed" })")
                 }
             }
         }
@@ -136,6 +123,30 @@ struct EarthView: View {
         cameraNode.camera?.fieldOfView = 65
         cameraNode.position = SCNVector3(x: 0, y: 0, z: 3)
         scene.rootNode.addChildNode(cameraNode)
+    }
+    
+    func animateCameraToPin(id: String) {
+        guard let pinNode = scene.rootNode.childNode(withName: id, recursively: true) else {
+            print("Pin not found: \(id)")
+            return
+        }
+        
+        guard let camNode = scene.rootNode.childNodes.first(where: {$0.camera != nil}) else {
+            print("Camera not found")
+            return
+        }
+        
+        let pinPos = pinNode.position
+        let dir = SCNVector3(pinPos.x-0, pinPos.y-0,pinPos.z-0) // dir from Earth centre to pin
+        let length = sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z)
+        let camDist: CGFloat = 3.0
+        let newCamPos = SCNVector3(dir.x/length * camDist, dir.y/length * camDist, dir.z/length * camDist)
+        
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 1.0
+        camNode.position = newCamPos
+        camNode.look(at: SCNVector3(0,0,0))
+        SCNTransaction.commit()
     }
     
     func fetchEarthquakeData() {

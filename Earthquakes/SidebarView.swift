@@ -50,13 +50,14 @@ struct SidebarView: View {
                     return
                 }
                 
-                if let match = idIndex[id]/*earthquakes.first(where: { $0.id == id }) ?? historicEarthquakes.first(where: { $0.id == id })*/ {
+                if let match = idIndex[id] ?? earthquakes.first(where: { $0.id == id }) ?? historicEarthquakes.first(where: { $0.id == id }) {
                     print("SidebarView: Found matching earthquake: \(match.id)")
-                    selectedEarthquake = match
-                    showPopover = true
-                    
                     withAnimation(.easeInOut(duration: 0.5)) {
                         proxy.scrollTo(id, anchor: .center)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        selectedEarthquake = match
+                        showPopover = true
                     }
                 } else {
                     print("SidebarView: No matching earthquake found for ID: \(id)")
@@ -111,16 +112,14 @@ struct SidebarView: View {
             }
         }.id(e.id)
             .popover(isPresented: Binding(get: {
-                (showPopover && selectedEarthquake == e) || selectedEarthquakeID == e.id
+                (showPopover && selectedEarthquake?.id == e.id) || selectedEarthquakeID == e.id
             }, set: {
                 if !$0 {
                     showPopover=false
                     selectedEarthquakeID = nil
                 }
             })) {
-                if let se = selectedEarthquake {
-                    historicalSectionRowPopoverContent(se)
-                }
+                historicalSectionRowPopoverContent(selectedEarthquake ?? e)
             }
             .buttonStyle(PlainButtonStyle())
     }
@@ -201,16 +200,14 @@ struct SidebarView: View {
             }
         }.id(e.id)
             .popover(isPresented: Binding(get: {
-                (showPopover && selectedEarthquake == e) || selectedEarthquakeID == e.id
+                (showPopover && selectedEarthquake?.id == e.id) || selectedEarthquakeID == e.id
             }, set: {
                 if !$0 {
                     showPopover=false
                     selectedEarthquakeID = nil
                 }
             })) {
-                if let se = selectedEarthquake {
-                    pastDaySectionRowPopoverContent(se)
-                }
+                pastDaySectionRowPopoverContent(selectedEarthquake ?? e)
             }
             .buttonStyle(PlainButtonStyle())
     }
