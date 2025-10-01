@@ -265,61 +265,66 @@ struct EarthView: View {
         }
     }
     
-    private func processFeatChunk(_ features: [[String: Any]]) -> [Earthquake] {
-        var earthquakes: [Earthquake] = []
-        
-        for feature in features {
-            if let properties = feature["properties"] as? [String: Any],
-               let mag = properties["mag"] as? Double,
-               let place = properties["place"] as? String,
-               let url = properties["url"] as? String,
-               let eid = feature["id"] as? String,
-               let time = properties["time"] as? Int64,
-               let geo = feature["geometry"] as? [String: Any],
-               let coords = geo["coordinates"] as? [Double],
-               let sig = properties["sig"] as? Double {
-                
-                let MMI: Double? = {
-                    if let mmi = properties["cdi"] {
-                        return mmi is NSNull ? nil : mmi as? Double
+    private func processFeatChunk(_ features: [[String: Any]]) async -> [Earthquake] {
+        await Task.detached(priority: .userInitiated) {
+            var earthquakes: [Earthquake] = []
+            earthquakes.reserveCapacity(features.count)
+            
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            
+            let stateRegex = /of (.*)/
+            
+            for feature in features {
+                if let properties = feature["properties"] as? [String: Any],
+                   let mag = properties["mag"] as? Double,
+                   let place = properties["place"] as? String,
+                   let url = properties["url"] as? String,
+                   let eid = feature["id"] as? String,
+                   let time = properties["time"] as? Int64,
+                   let geo = feature["geometry"] as? [String: Any],
+                   let coords = geo["coordinates"] as? [Double],
+                   let sig = properties["sig"] as? Double {
+                    
+                    let MMI: Double? = {
+                        if let mmi = properties["cdi"] {
+                            return mmi is NSNull ? nil : mmi as? Double
+                        }
+                        return nil
+                    }()
+                    
+                    let formattedTime = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(time / 1000)))
+                    
+                    var state = place.capitalized
+                    
+                    do {
+                        if let stateMatch = try stateRegex.firstMatch(in: place) {
+                            state = String(String(stateMatch.0).dropFirst(3))
+                        } else {
+                            state = place.capitalized
+                        }
+                    } catch {
+                        print("Failed to found state in \(place.capitalized)")
                     }
-                    return nil
-                }()
-                
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                let formattedTime = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(time / 1000)))
-                
-                let stateRegex = /of (.*)/
-                var state = place.capitalized
-                
-                do {
-                    if let stateMatch = try stateRegex.firstMatch(in: place) {
-                        state = String(String(stateMatch.0).dropFirst(3))
-                    } else {
-                        state = place.capitalized
-                    }
-                } catch {
-                    print("Failed to found state in \(place.capitalized)")
+                    
+                    earthquakes.append(Earthquake(
+                        id: eid,
+                        mag: mag,
+                        MMI: MMI,
+                        sig: sig,
+                        loc: place,
+                        place: state,
+                        lat: coords[1],
+                        lon: coords[0],
+                        depth: coords[2],
+                        url: url,
+                        time: formattedTime
+                    ))
                 }
-                
-                earthquakes.append(Earthquake(
-                    id: eid,
-                    mag: mag,
-                    MMI: MMI,
-                    sig: sig,
-                    loc: place,
-                    place: state,
-                    lat: coords[1],
-                    lon: coords[0],
-                    depth: coords[2],
-                    url: url,
-                    time: formattedTime
-                ))
             }
-        }
-        
-        return earthquakes
+            
+            return earthquakes
+        }.value
     }
     
     func updateEarquakeList(_ features: [[String: Any]]) {
@@ -361,52 +366,67 @@ struct EarthView: View {
     }
     
     func updateEarthquakePins(_ features: [[String: Any]], _ select: Int) { // 0: Past x, 1: Historical, 2: both
-        let nToRemove = scene.rootNode.childNodes.filter {
-            $0.name?.starts(with: "E") ?? false
+        let existingPins = Set(scene.rootNode.childNodes
+            .filter { $0.name?.starts(with: "E") ?? false }
+            .compactMap { $0.name })
+        
+        var desiredPins = Set<String>()
+        var pinsToAdd: [SCNNode] = []
+        
+        if select == 0 || select == 2 {
+            for feature in features {
+                if let geo = feature["geometry"] as? [String: Any],
+                   let coord = geo["coordinates"] as? [Double], coord.count >= 2,
+                   let properties = feature["properties"] as? [String: Any],
+                   let mag = properties["mag"] as? Double,
+                   let idStr = feature["id"] as? String {
+                    
+                    let pinName = "EPDEarthquakePin_\(idStr)"
+                    desiredPins.insert(pinName)
+                    
+                    if !existingPins.contains(pinName) {
+                        let pinNode = createPinNode(
+                            color: getMagColor(mag),
+                            position: convertCoordinatesTo3D(lat: coord[1], lon: coord[0]),
+                            id: pinName
+                        )
+                        pinsToAdd.append(pinNode)
+                    }
+                }
+            }
         }
         
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = 0
-        nToRemove.forEach {$0.removeFromParentNode()}
-        SCNTransaction.commit()
+        if select == 1 || select == 2 {
+            for e in historicEarthquakes {
+                if let lat = e.lat, let lon = e.lon {
+                    let pinName = "EHEarthquakePin_\(e.id)"
+                    desiredPins.insert(pinName)
+                    
+                    if !existingPins.contains(pinName) {
+                        let node = createPinNode(
+                            color: getMagColor(e.mag),
+                            position: convertCoordinatesTo3D(lat: lat, lon: lon),
+                            id: pinName
+                        )
+                        pinsToAdd.append(node)
+                    }
+                }
+            }
+        }
         
-        DispatchQueue.global(qos: .userInitiated).async {
-            var pinNodes: [SCNNode] = []
-            
-            if select==0 || select==2 {
-                for feature in features {
-                    if let geo = feature["geometry"] as? [String: Any],
-                       let coord = geo["coordinates"] as? [Double], coord.count >= 2,
-                       let properties = feature["properties"] as? [String: Any],
-                       let mag = properties["mag"] as? Double,
-                       let idStr = feature["id"] as? String {
-                        //print("Adding pin at \(coord[1]),\(coord[0])")
-                        //                        addEarthquakePin(lat:coord[1], lon:coord[0], mag:mag, id:id as! String, first: "PD")
-                        let pinNode = self.createPinNode(
-                            color: self.getMagColor(mag),
-                            position: self.convertCoordinatesTo3D(lat: coord[1], lon: coord[0]),
-                            id: "EPDEarthquakePin_\(idStr)"
-                        )
-                        pinNodes.append(pinNode)
-                    }
-                }
-            }
-            
-            if select == 1 || select == 2 {
-                for e in self.historicEarthquakes {
-                    if let lat = e.lat, let lon = e.lon {
-                        let node = self.createPinNode(
-                            color: self.getMagColor(e.mag),
-                            position: self.convertCoordinatesTo3D(lat: lat, lon: lon),
-                            id: "EHEarthquakePin_\(e.id)"
-                        )
-                        pinNodes.append(node)
-                    }
-                }
-            }
-            
-            let batchSize = 50
-            for batch in pinNodes.chunked(batchSize) {
+        let pinsToRemove = existingPins.subtracting(desiredPins)
+        if !pinsToRemove.isEmpty {
+            SCNTransaction.begin()
+            SCNTransaction.animationDuration = 0
+            scene.rootNode.childNodes
+                .filter { pinsToRemove.contains($0.name ?? "") }
+                .forEach { $0.removeFromParentNode() }
+            SCNTransaction.commit()
+        }
+        
+        if !pinsToAdd.isEmpty {
+            let batchSize = 100
+            for batch in pinsToAdd.chunked(batchSize) {
                 DispatchQueue.main.async {
                     SCNTransaction.begin()
                     SCNTransaction.animationDuration = 0
@@ -415,12 +435,6 @@ struct EarthView: View {
                 }
             }
         }
-        
-        //        if select==1 || select==2 {
-        //            for e in historicEarthquakes {
-        //                addEarthquakePin(lat: e.lat!, lon: e.lon!, mag: e.mag, id: e.id, first: "H")
-        //            }
-        //        }
     }
     
     private func getMagColor(_ mag: Double) -> NSColor {
@@ -548,11 +562,21 @@ struct ClickableSceneView: NSViewRepresentable {
         scnView.translatesAutoresizingMaskIntoConstraints = false
         scnView.scene = scene
         scnView.allowsCameraControl = true
-        scnView.autoenablesDefaultLighting = true
+        scnView.autoenablesDefaultLighting = false
         scnView.backgroundColor = .clear
         scnView.isPlaying = true
         scnView.delegate = context.coordinator
         scnView.coordinator = context.coordinator
+        
+        scnView.rendersContinuously = false
+        scnView.antialiasingMode = .none
+        
+        let light = SCNLight()
+        light.type = .ambient
+        light.intensity = 1000
+        let lightNode = SCNNode()
+        lightNode.light = light
+        scene.rootNode.addChildNode(lightNode)
         
         context.coordinator.view = scnView
         DispatchQueue.main.async {

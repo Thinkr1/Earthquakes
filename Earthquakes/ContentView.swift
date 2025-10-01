@@ -75,19 +75,28 @@ struct ContentView: View {
     @State private var isLoading: Bool = false
     @State private var showLargeDataWarning: Bool = false
     @State private var searchText: String = ""
+    @State private var searchIndex: [String: Set<String>] = [:] // word: earthquake IDs
+    @State private var searchDebounceTask: Task<Void, Never>?
 
     private var searchResults: [Earthquake] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if query.isEmpty { return [] }
-        let all = earthquakes + historicEarthquakes
-        return all.filter { e in
-            e.loc.localizedCaseInsensitiveContains(query) ||
-            e.place.localizedCaseInsensitiveContains(query) ||
-            e.id.localizedCaseInsensitiveContains(query)
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return [] }
+        
+        let words = query.components(separatedBy: " ").filter { !$0.isEmpty }
+        guard !words.isEmpty else { return [] }
+        
+        var matchingIDs = Set<String>()
+        for word in words {
+            for (indexWord, ids) in searchIndex where indexWord.hasPrefix(word) {
+                matchingIDs.formUnion(ids)
+            }
         }
-        .sorted { a, b in a.time > b.time }
-        .prefix(25)
-        .map { $0 }
+        
+        let all = earthquakes + historicEarthquakes
+        return all.filter { matchingIDs.contains($0.id) }
+            .sorted { $0.time > $1.time }
+            .prefix(25)
+            .map { $0 }
     }
 
     var body: some View {
@@ -246,6 +255,14 @@ struct ContentView: View {
                 if dataRange >= 1 {
                     showLargeDataWarning = true
                 }
+                
+                buildSearchIndex()
+            }
+            .onChange(of: earthquakes, initial: false) { _,_ in
+                buildSearchIndex()
+            }
+            .onChange(of: historicEarthquakes, initial: false) { _,_ in
+                buildSearchIndex()
             }
             
             if showLargeDataWarning {
@@ -396,6 +413,27 @@ struct ContentView: View {
             self.earthquakes = newQuakes
         } catch {
             print("fetching error")
+        }
+    }
+    
+    private func buildSearchIndex() {
+        Task.detached(priority: .utility) {
+            let all = await MainActor.run { earthquakes + historicEarthquakes }
+            var index: [String: Set<String>] = [:]
+            
+            for e in all {
+                let text = "\(e.loc) \(e.place) \(e.id)".lowercased()
+                let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                    .filter { $0.count >= 2 }
+                
+                for w in words {
+                    index[w, default: []].insert(e.id)
+                }
+            }
+            
+            await MainActor.run {
+                self.searchIndex = index
+            }
         }
     }
     
