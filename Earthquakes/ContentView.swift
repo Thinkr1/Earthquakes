@@ -68,9 +68,10 @@ struct ContentView: View {
         Earthquake(id: "17", mag: 8.6, MMI: 7, sig: nil, loc: "Indonesia, Sumatra", place: "Sumatra", lat: 1.1603, lon: 99.8789, depth: 20, url: "", time: "April 11, 2012"),
         Earthquake(id: "18", mag: 8.5, MMI: 6, sig: nil, loc: "Indonesia, Sumatra", place: "Sumatra", lat: 1.1603, lon: 99.8789, depth: 34, url: "", time: "September 12, 2007")
     ]
-    @State private var historicalSelect: Bool = true
-    @State private var pastSelect: Bool = true
-    @State private var dataRange: Int = 0 // 0: past 24h, 1: past week, 2: past month
+    @AppStorage("historicalSelect") private var historicalSelect: Bool = true
+    @AppStorage("pastSelect") private var pastSelect: Bool = true
+    @AppStorage("dataRange") private var dataRange: Int = 0 // 0: past 24h, 1: past week, 2: past month
+    @AppStorage("resultsPerPage") private var resultsPerPage: Int = 25
     @State private var selectedEarthquakeID: String? = nil
     @State private var isLoading: Bool = false
     @State private var showLargeDataWarning: Bool = false
@@ -95,7 +96,7 @@ struct ContentView: View {
         let all = earthquakes + historicEarthquakes
         return all.filter { matchingIDs.contains($0.id) }
             .sorted { $0.time > $1.time }
-            .prefix(25)
+//            .prefix(resultsPerPage)
             .map { $0 }
     }
 
@@ -201,7 +202,7 @@ struct ContentView: View {
             .searchable(text: $searchText, placement: .toolbar, prompt: "Search earthquakes")
             .searchSuggestions {
                 if !searchResults.isEmpty {
-                    ForEach(searchResults, id: \.id) { e in
+                    ForEach(searchResults.prefix(resultsPerPage), id: \.id) { e in
                         Button(action: {
                             handleSearchSelection(e)
                         }) {
@@ -224,6 +225,11 @@ struct ContentView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                    }
+                    HStack(alignment: .center) {
+                        Spacer()
+                        Text("\(searchResults.count) result\(searchResults.count == 1 ? "" : "s") found (showing \(searchResults.prefix(resultsPerPage).count))").font(.caption).foregroundStyle(.secondary).padding()
+                        Spacer()
                     }
                 } else if !searchText.isEmpty {
                     Text("No results for \"\(searchText)\"")
@@ -418,7 +424,7 @@ struct ContentView: View {
     
     private func buildSearchIndex() {
         Task.detached(priority: .utility) {
-            let all = await MainActor.run { earthquakes + historicEarthquakes }
+            let all = await MainActor.run { [earthquakes, historicEarthquakes] in earthquakes + historicEarthquakes }
             var index: [String: Set<String>] = [:]
             
             for e in all {
@@ -431,7 +437,7 @@ struct ContentView: View {
                 }
             }
             
-            await MainActor.run {
+            await MainActor.run { [index] in
                 self.searchIndex = index
             }
         }
@@ -471,7 +477,7 @@ struct ContentView: View {
             panel.hidesOnDeactivate = true
             panel.isReleasedWhenClosed = false
             panel.title = "Settings"
-            panel.contentView = NSHostingView(rootView: SettingsView(pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange))//, MBEVisible: $MBEVisible))
+            panel.contentView = NSHostingView(rootView: SettingsView())//, MBEVisible: $MBEVisible))
             
             panel.isOpaque = false
             panel.backgroundColor = .clear

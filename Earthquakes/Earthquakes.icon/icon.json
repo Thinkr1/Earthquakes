@@ -1,13 +1,13 @@
 {
   "fill" : {
-    "automatic-gradient" : "srgb:0.02353,0.03922,0.18431,1.00000"
+    "automatic-gradient" : "display-p3:0.02703,0.04118,0.19514,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
           "fill" : {
-            "automatic-gradient" : "display-p3:0.52300,0.55053,0.79120,1.00000"
+            "automatic-gradient" : "display-p3:0.17285,0.39990,0.65283,1.00000"
           },
           "image-name" : "full.svg",
           "name" : "full",
