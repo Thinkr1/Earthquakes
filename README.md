@@ -12,7 +12,7 @@
 A macOS app for exploring seismic activity on an interactive 3D globe.
 Visualise earthquake data from the [U.S. Geological Survey (USGS)](https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson), showing events from the past **24 hours, week, or month**, as well as major historical earthquakes (**magnitude ≥ 8.5 since 1900**).  
 
-The Earth texture comes from the NASA Visible Earth catalog.
+The Earth texture comes from the NASA Visible Earth catalog, Apple Maps version is also available (check settings).
 
 <img width="1349" height="901" alt="Presentation (search, popover, 3D map)" src="https://github.com/user-attachments/assets/30982ddf-45c6-4db4-b7a6-3b7bd05e67c2" />
 
