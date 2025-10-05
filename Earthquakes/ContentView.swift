@@ -72,6 +72,7 @@ struct ContentView: View {
     @AppStorage("pastSelect") private var pastSelect: Bool = true
     @AppStorage("dataRange") private var dataRange: Int = 0 // 0: past 24h, 1: past week, 2: past month
     @AppStorage("resultsPerPage") private var resultsPerPage: Int = 25
+    @AppStorage("mapStyle") private var mapStyle: CMapStyle = .appleMaps
     @State private var selectedEarthquakeID: String? = nil
     @State private var isLoading: Bool = false
     @State private var showLargeDataWarning: Bool = false
@@ -105,8 +106,10 @@ struct ContentView: View {
             NavigationSplitView {
                 SidebarView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID)
             } detail: {
-                ZStack {
+                if mapStyle == .nasaTextured {
                     EarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, dataRange: $dataRange, selectedEarthquakeID: $selectedEarthquakeID, isLoading: $isLoading)
+                } else {
+                    AMEarthView(earthquakes: $earthquakes, historicEarthquakes: $historicEarthquakes, pastSelect: $pastSelect, historicalSelect: $historicalSelect, selectedEarthquakeID: $selectedEarthquakeID, dataRange: $dataRange, isLoading: $isLoading, onFetchData: { await fetchEarthquakeData() })
                 }
             }
             .toolbar {

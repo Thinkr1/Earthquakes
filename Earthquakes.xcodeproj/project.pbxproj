@@ -290,15 +290,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Earthquakes;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2025 Pierre-Louis ML";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Earthquakes needs your location to show earthquakes near you";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.plmls-team.Earthquakes";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -324,15 +322,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Earthquakes;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2025 Pierre-Louis ML";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Earthquakes needs your location to show earthquakes near you";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Earthquakes needs your location to show earthquakes near you";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.plmls-team.Earthquakes";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

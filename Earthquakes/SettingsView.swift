@@ -7,17 +7,27 @@
 
 import SwiftUI
 
+enum CMapStyle: String, CaseIterable {
+    case nasaTextured
+    case appleMaps
+}
+
 struct SettingsView: View {
     @AppStorage("pastSelect") private var pastSelect: Bool = true
     @AppStorage("historicalSelect") private var historicalSelect: Bool = true
     @AppStorage("dataRange") private var dataRange: Int = 0
     @AppStorage("resultsPerPage") private var resultsPerPage: Int = 25
+    @AppStorage("mapStyle") private var mapStyle: CMapStyle = .appleMaps
     
     private let dataRangeOptions = ["Past Day", "Past Week", "Past Month"]
     private let resultsOptions = [25, 50, 100, 200]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            Picker("Map style (both with pins):", selection: $mapStyle) {
+                Text("Custom NASA textured map").tag(CMapStyle.nasaTextured)
+                Text("Apple Maps").tag(CMapStyle.appleMaps)
+            }
             HStack {
                 Text("Show:")
                     .padding(.leading)
@@ -80,6 +90,6 @@ struct SettingsView: View {
             Spacer()
         }
         .padding(.top)
-        .frame(maxWidth: 350, maxHeight: 200)
+        .frame(maxWidth: 450, maxHeight: 275)
     }
 }
